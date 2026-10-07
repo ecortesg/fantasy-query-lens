@@ -1,0 +1,4 @@
+reviews:
+  path_filters:
+    - "!tests/fixtures/**"
+    - "!pnpm-lock.yaml"

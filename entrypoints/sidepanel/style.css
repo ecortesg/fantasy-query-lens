@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fantasy Query blue, a little darker than the icon so white text passes WCAG AA */
+  --color-brand: #0078c8;
+}
+
+@layer components {
+  .btn {
+    @apply rounded bg-brand px-3 py-1.5 text-sm font-medium text-white enabled:hover:brightness-95 disabled:opacity-40;
+  }
+}
