@@ -32,6 +32,10 @@ Text for the Chrome Web Store and Edge Add-ons forms. Keep it in sync with the e
 
 **Category:** pick the closest one in the form.
 
+**Homepage URL:** https://github.com/ecortesg/fantasy-query-lens
+
+**Support URL:** https://github.com/ecortesg/fantasy-query-lens/issues
+
 **Assets:** the 128 px icon from `public/icon/128.png` (all sizes are made from `assets/icon.svg`), and at least one 1280×800 screenshot of the panel beside a highlighted rankings page.
 
 ## Privacy tab
