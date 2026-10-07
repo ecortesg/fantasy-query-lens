@@ -25,18 +25,29 @@ Text for the Chrome Web Store and Edge Add-ons forms. Keep it in sync with the e
 > • Import your Leagues from Sleeper, or add a League by hand
 > • Highlights your starters and bench on the page
 > • Suggests a lineup that fills your League's slots, including flex and IDP
+> • Finds Pickups: available players who would start for you or upgrade your bench
 > • Merges position pages, so a site that shows one position at a time still gives a full lineup
 > • Works on the rankings sites you already read
 >
 > No account, no tracking. The extension reads a page only when you ask it to.
+>
+> Open source: https://github.com/ecortesg/fantasy-query-lens
 
-**Category:** pick the closest one in the form.
+**Category:** Lifestyle → Entertainment
+
+**Language:** English (United States)
 
 **Homepage URL:** https://github.com/ecortesg/fantasy-query-lens
 
 **Support URL:** https://github.com/ecortesg/fantasy-query-lens/issues
 
-**Assets:** the 128 px icon from `public/icon/128.png` (all sizes are made from `assets/icon.svg`), and at least one 1280×800 screenshot of the panel beside a highlighted rankings page.
+**Assets:**
+
+- Store icon: `public/icon/128.png` (all sizes are made from `assets/icon.svg`).
+- Screenshots: 1 to 5 at 1280×800, of the panel beside a highlighted rankings page. Now: the Lineup, then the Pickups.
+- Small promo tile: 440×280. The icon, the name with "Lens" marked in yellow, and the tagline on the brand blue.
+
+Screenshots and tiles must be JPEG or PNG with no alpha. A macOS screenshot has alpha: a round trip through JPEG with `sips` removes it.
 
 ## Privacy tab
 
