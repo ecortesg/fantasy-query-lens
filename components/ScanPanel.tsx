@@ -195,21 +195,22 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return (
       <>
         {/* The last Scan stays below: this page was not read. */}
-        {onScannedPage && scanned.changed && !scanning && (
-          <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-3 flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
-            <p className="flex-1">The page changed. Rescan to read what it shows now.</p>
-            <button className="btn shrink-0" onClick={() => scan()}>
-              Rescan
-            </button>
-          </div>
-        )}
         {blocked && (
           <div className="flex items-center gap-3 border-t border-neutral-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
             <p className="flex-1">Lens cannot read this page. Click the Lens icon in the toolbar to scan it.</p>
             {allowAll}
           </div>
         )}
-        <LineupView league={league} byId={byId} result={result} stored={stored ?? []} onKinds={sendKinds} onForget={forget} action={scanButton}>
+        <LineupView
+          league={league}
+          byId={byId}
+          result={result}
+          stored={stored ?? []}
+          changed={!!(onScannedPage && scanned.changed)}
+          onKinds={sendKinds}
+          onForget={forget}
+          action={scanButton}
+        >
           {allowCard}
         </LineupView>
       </>
