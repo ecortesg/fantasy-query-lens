@@ -46,11 +46,15 @@ function playerPattern(player: Player): string {
  * Whether a defense's name is about the defense. "SF" is in the Team column of
  * every 49ers player's row, and "49ers" is in headlines, so a bare name counts
  * only in a row or list about defenses. A bare code must be in capitals ("NO",
- * not "no"). A name after "@", "vs." or "at" in a row is the opponent.
+ * not "no"). A name after "@", "vs." or "at" in a row is the opponent, and so
+ * is one after another team's code: Fantasy Footballers writes a home game as
+ * "WAS (7) NYG".
  */
-function isDefenseHit(node: Text, start: number, text: string): boolean {
+function isDefenseHit(node: Text, start: number, text: string, team: string): boolean {
   const entry = node.parentElement?.closest(ENTRY);
-  if (entry && /(?:@|\b(?:vs?|at)\.?)\s*$/i.test(textBefore(entry, node, start))) return false;
+  const before = entry ? textBefore(entry, node, start) : '';
+  if (/(?:@|\b(?:vs?|at)\.?)\s*$/i.test(before)) return false;
+  if (before.match(/\b[A-Z]{2,3}\b/g)?.some((token) => (teamCode(token) ?? team) !== team)) return false;
   if (new RegExp(`${DEFENSE_WORD}$`, 'i').test(text)) return true;
   if (teamCode(text.toUpperCase()) && text !== text.toUpperCase()) return false;
   if (!entry) return false;
@@ -149,7 +153,7 @@ export function findPlayers(root: Element, players: readonly Player[]): Hit[] {
       });
       const { node, start } = parts[0]!;
       const player = byPattern.get(patterns[match.order]!)!.find(
-        (p) => fitsTeam(node, p) && (!p.positions.includes('DEF') || isDefenseHit(node, start, match.text.replaceAll(BREAK, ''))),
+        (p) => fitsTeam(node, p) && (!p.positions.includes('DEF') || isDefenseHit(node, start, match.text.replaceAll(BREAK, ''), p.team)),
       );
       if (!player) continue;
       const entry = node.parentElement?.closest(ENTRY);
