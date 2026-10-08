@@ -14,8 +14,8 @@ type Props = {
   byId: ReadonlyMap<string, Player>;
   result: ScanResult;
   stored: readonly StoredList[];
-  /** The page removed this Scan's marks since, such as on a tab click. */
-  changed: boolean;
+  /** The page now ranks otherwise than the kept lists. */
+  outdated: boolean;
   /** Called with the colors the page's marks should have. */
   onKinds: (kinds: Record<string, MarkKind>) => void;
   /** Removes a list from the Lineup until the next Scan of its page. */
@@ -26,7 +26,7 @@ type Props = {
   children?: React.ReactNode;
 };
 
-export function LineupView({ league, byId, result, stored, changed, onKinds, onForget, action, children }: Props) {
+export function LineupView({ league, byId, result, stored, outdated, onKinds, onForget, action, children }: Props) {
   // This page's lists plus those kept from other pages of the same Source (ADR-0004).
   // This page's are merged here too, so they count before storage catches up.
   const merged = mergeLists(stored, storedLists(result));
@@ -63,8 +63,8 @@ export function LineupView({ league, byId, result, stored, changed, onKinds, onF
   const onPage = new Set(result.found);
   const found = `${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
   const title = sourceTitle(result.source);
-  const scannedAt = changed ? (
-    <span className="text-amber-700">page changed since {scanTime(result.scannedAt)}</span>
+  const scannedAt = outdated ? (
+    <span className="text-amber-700">Ranks out of date</span>
   ) : (
     `scanned ${scanTime(result.scannedAt)}`
   );

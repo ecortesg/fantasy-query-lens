@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { RankedList } from '../lib/page/ranks';
 import type { ScanResult } from '../lib/page/scan';
-import { forgetList, listsFromSource, mergeLists, saveScan, scansItem, storedLists, withoutList } from '../lib/scans';
+import { forgetList, isOutdated, listsFromSource, mergeLists, saveScan, scansItem, storedLists, withoutList } from '../lib/scans';
 
 const list = (positions: RankedList['positions'], rank: number): RankedList => ({
   heading: positions.join('/'),
@@ -92,5 +92,26 @@ describe('withoutList', () => {
     await saveScan(result(3, [list(['RB'], 4)]));
     const qb = storedLists(last)[0]!;
     expect(withoutList(last, qb, await scansItem.getValue())?.lists).toEqual([]);
+  });
+});
+
+describe('isOutdated', () => {
+  const scan = result(3, [list(['QB'], 11), list(['RB'], 4)]);
+  const kept = storedLists(scan);
+
+  it('is not when the page shows a kept list again, as on a click back to its tab', () => {
+    expect(isOutdated(result(3, [list(['QB'], 11)], 2), scan, kept)).toBe(false);
+  });
+
+  it('is when a kept list now ranks a player differently', () => {
+    expect(isOutdated(result(3, [list(['QB'], 12)], 2), scan, kept)).toBe(true);
+  });
+
+  it('is not for a list that was never scanned', () => {
+    expect(isOutdated(result(3, [list(['TE'], 1)], 2), scan, kept)).toBe(false);
+  });
+
+  it('is when the page now ranks another week', () => {
+    expect(isOutdated(result(4, [list(['QB'], 11)], 2), scan, kept)).toBe(true);
   });
 });

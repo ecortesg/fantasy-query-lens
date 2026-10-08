@@ -2,14 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { refreshRoster, type League } from '@/lib/league';
 import type { MarkKind } from '@/lib/page/highlight';
-import type { ClearMarks, KindsUpdate, PageChanged, ScanRequest, ScanResult } from '@/lib/page/scan';
+import type { ClearMarks, KindsUpdate, PageView, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { availablePlayers } from '@/lib/pickups';
-import { forgetList, saveScan, scansItem, withoutList, type StoredList } from '@/lib/scans';
+import { forgetList, isOutdated, mergeLists, saveScan, scansItem, storedLists, withoutList, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
 import { LineupView } from './LineupView';
 import { RosterSection, SourceCard } from './ui';
 import { useStorageItem } from './use-storage-item';
-import { ALL_SITES, scanRequestItem, scanTab, sitePattern } from '@/lib/scan-client';
+import { ALL_SITES, lastScanItem, scanRequestItem, scanTab, sitePattern } from '@/lib/scan-client';
 
 /** A toolbar click this recent still asks the panel to scan when the panel opens. */
 const FRESH_REQUEST_MS = 10_000;
@@ -19,14 +19,14 @@ const MIN_BUSY_MS = 400;
 type Props = { league: League; leagues: readonly League[]; byId: ReadonlyMap<string, Player> };
 
 /**
- * The last Scan stays when the user goes to another tab or page, or changes the
- * page, until they scan again (ADR-0007, ADR-0009).
+ * The last Scan stays when the user goes to another tab or page, changes the
+ * page, or closes the panel, until they scan again (ADR-0007, ADR-0009).
  */
 export function ScanPanel({ league, leagues, byId }: Props) {
   const stored = useStorageItem(scansItem);
   const [result, setResult] = useState<ScanResult>();
-  /** The tab of `result`, whether it still shows that page, and whether the page changed since. */
-  const [scanned, setScanned] = useState<{ tabId: number; gone: boolean; changed?: boolean }>();
+  /** The tab of `result`, whether it still shows that page, and whether the page now ranks otherwise. */
+  const [scanned, setScanned] = useState<{ tabId: number; gone: boolean; outdated?: boolean }>();
   const [activeTab, setActiveTab] = useState<number>();
   const [scanning, setScanning] = useState(false);
   /** The user's last Scan could not read the page. */
@@ -45,11 +45,30 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   const latestScan = useRef(0);
   // The latest Scan that shows the busy state; a quiet one does not count.
   const latestShown = useRef(0);
+  // The latest Scan and kept lists, read by listeners.
+  const resultRef = useRef(result);
+  resultRef.current = result;
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
   const windowId = useRef<number | undefined>(undefined);
   useEffect(() => {
     browser.windows.getCurrent().then((w) => (windowId.current = w.id));
     browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => setActiveTab(tab?.id));
   }, []);
+
+  // Every League's players, so the kept lists hold ranks for all of them,
+  // then the active League's available players, for its Pickups (ADR-0006).
+  // Only the active League's Roster is colored.
+  const requestFor = useCallback(async (): Promise<ScanRequest> => {
+    const current = await refreshRoster(leagueRef.current);
+    const ids = new Set([...leaguesRef.current.filter((l) => l.id !== current.id), current].flatMap((l) => l.roster.map((e) => e.playerId)));
+    const available = availablePlayers(current, byId.values()).filter((p) => !ids.has(p.id));
+    return {
+      type: 'fq-lens:scan',
+      players: [...[...ids].flatMap((pid) => byId.get(pid) ?? []), ...available],
+      kinds: Object.fromEntries(current.roster.map((e) => [e.playerId, 'bench'])),
+    };
+  }, [byId]);
 
   const scan = useCallback(
     async (target?: number, { quiet = false } = {}) => {
@@ -63,18 +82,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
         setBlocked(false);
       }
       try {
-        const current = await refreshRoster(leagueRef.current);
-        // Every League's players, so the kept lists hold ranks for all of them,
-        // then the active League's available players, for its Pickups (ADR-0006).
-        // Only the active League's Roster is colored.
-        const ids = new Set([...leaguesRef.current.filter((l) => l.id !== current.id), current].flatMap((l) => l.roster.map((e) => e.playerId)));
-        const available = availablePlayers(current, byId.values()).filter((p) => !ids.has(p.id));
-        const request: ScanRequest = {
-          type: 'fq-lens:scan',
-          players: [...[...ids].flatMap((pid) => byId.get(pid) ?? []), ...available],
-          kinds: Object.fromEntries(current.roster.map((e) => [e.playerId, 'bench'])),
-        };
-        const next = await scanTab(id, request);
+        const next = await scanTab(id, await requestFor());
         if (next.kind === 'done') {
           await saveScan(next.result).catch((e) => console.error('Lens: could not keep the lists', e));
           if (run === latestScan.current && kindsRef.current) sendKindsTo(id, kindsRef.current);
@@ -97,8 +105,38 @@ export function ScanPanel({ league, leagues, byId }: Props) {
         }
       }
     },
-    [byId],
+    [requestFor],
   );
+
+  /** What the page ranks now against the kept lists. The Lineup does not change (ADR-0009). */
+  const compare = (view: ScanResult) => {
+    const last = resultRef.current;
+    if (!last) return;
+    const kept = mergeLists(storedRef.current ?? [], storedLists(last));
+    setScanned((s) => s && { ...s, gone: false, outdated: isOutdated(view, last, kept) });
+  };
+
+  // The scanned page loaded again: on a site the user allowed, mark it again and compare.
+  // With no access, Chrome lets no script in until the next toolbar click.
+  const markAgain = async (id: number) => {
+    const next = await scanTab(id, await requestFor());
+    if (next.kind !== 'done') return;
+    if (kindsRef.current) sendKindsTo(id, kindsRef.current);
+    compare(next.result);
+  };
+  const markAgainRef = useRef(markAgain);
+  markAgainRef.current = markAgain;
+
+  // The last Scan, when the panel opens again. A Scan that started first wins.
+  useEffect(() => {
+    lastScanItem.getValue().then(async (last) => {
+      if (!last || latestScan.current) return;
+      const tab = await browser.tabs.get(last.tabId).catch(() => undefined);
+      if (latestScan.current) return;
+      setResult(last.result);
+      setScanned({ tabId: last.tabId, gone: tab?.url !== last.result.url });
+    });
+  }, []);
 
   // A toolbar click, now or just before the panel opened.
   useEffect(() => {
@@ -116,7 +154,10 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       setBlocked(false);
     };
     const onGone = (id: number) => setScanned((s) => (s?.tabId === id ? { ...s, gone: true } : s));
-    const onUpdated = (id: number, change: { status?: string }) => change.status === 'loading' && onGone(id);
+    const onUpdated = (id: number, change: { status?: string }, tab: { url?: string }) => {
+      if (change.status === 'loading') onGone(id);
+      else if (change.status === 'complete' && tab.url && tab.url === resultRef.current?.url) markAgainRef.current(id);
+    };
     browser.tabs.onActivated.addListener(onActivated);
     browser.tabs.onUpdated.addListener(onUpdated);
     browser.tabs.onRemoved.addListener(onGone);
@@ -132,15 +173,19 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     if (scanned && !scanned.gone) scan(scanned.tabId, { quiet: true });
   }, [league.id]); // Only a League change triggers this.
 
-  // The scanned page removed our marks, such as on a tab click. It does not scan by itself (ADR-0009).
+  // The scanned page drew new content over our marks, such as on a tab click.
   const scannedTab = scanned?.tabId;
   useEffect(() => {
-    const onMessage = (message: PageChanged, sender: { tab?: { id?: number } }) => {
-      if (message?.type === 'fq-lens:changed' && sender.tab?.id === scannedTab) setScanned((s) => s && { ...s, changed: true });
+    const onMessage = (message: PageView, sender: { tab?: { id?: number } }) => {
+      if (message?.type === 'fq-lens:view' && sender.tab?.id === scannedTab) compare(message.result);
     };
     browser.runtime.onMessage.addListener(onMessage);
     return () => browser.runtime.onMessage.removeListener(onMessage);
   }, [scannedTab]);
+
+  useEffect(() => {
+    if (result && scannedTab !== undefined) lastScanItem.setValue({ tabId: scannedTab, result });
+  }, [result, scannedTab]);
 
   const sendKinds = useCallback(
     (kinds: Record<string, MarkKind>) => {
@@ -160,6 +205,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       browser.tabs.sendMessage(scanned.tabId, clear).catch(() => {});
     }
     kindsRef.current = undefined;
+    lastScanItem.setValue(null);
     setResult(undefined);
     setScanned(undefined);
   };
@@ -193,7 +239,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   );
   const allowCard = askFor && (
     <div className="flex items-center gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-xs text-neutral-600">
-      <p className="flex-1">Rescan {new URL(askFor.replace('/*', '')).host} from the panel without the toolbar icon.</p>
+      <p className="flex-1">Rescan {new URL(askFor.replace('/*', '')).host} from the panel, and keep highlights after a reload.</p>
       <button className="rounded-md border border-neutral-300 px-2.5 py-1 font-medium text-neutral-900" onClick={() => allow([askFor])}>
         Allow
       </button>
@@ -215,7 +261,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
           byId={byId}
           result={result}
           stored={stored ?? []}
-          changed={!!(onScannedTab && (scanned.gone || scanned.changed))}
+          outdated={!!(onScannedTab && scanned.outdated)}
           onKinds={sendKinds}
           onForget={forget}
           action={scanButton}

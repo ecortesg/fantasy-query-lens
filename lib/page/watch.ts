@@ -1,23 +1,13 @@
-import type { Player } from '../players';
-import { findPlayers } from './find';
-import { clearHighlights, highlight, type MarkKind } from './highlight';
-
 const SELECTOR = 'mark[data-fq-lens]';
 
 /**
- * Marks the players again when the page removes the marks now on it, as a tab
- * click that draws a new table does, and calls `onChanged`. Other changes, like
- * ads, do not count. After a view with none of the players, any change marks
- * again, so the players come back with their tab. Ranks are not read again
- * (ADR-0009). Returns a function that stops watching.
+ * Calls `remark` when the page removes the marks now on it, as a tab click
+ * that draws a new table does, with `gone` true. Other changes, like ads, do
+ * not count. After a view with no marks, any change calls it, with `gone`
+ * false, so the players come back with their tab. Returns a function that stops
+ * watching.
  */
-export function keepMarked(
-  root: Element,
-  players: readonly Player[],
-  kind: (playerId: string) => MarkKind | undefined,
-  onChanged: () => void,
-  delayMs = 300,
-): () => void {
+export function keepMarked(root: Element, remark: (gone: boolean) => void, delayMs = 300): () => void {
   let marks = [...root.querySelectorAll(SELECTOR)];
   if (!marks.length) return () => {};
   const options = { childList: true, subtree: true };
@@ -29,10 +19,9 @@ export function keepMarked(
       if (marks.length && !gone) return;
       // Our own marks are not changes of the page.
       observer.disconnect();
-      clearHighlights(root);
-      marks = highlight(findPlayers(root, players), kind);
+      remark(gone);
+      marks = [...root.querySelectorAll(SELECTOR)];
       observer.observe(root, options);
-      if (gone) onChanged();
     }, delayMs);
   });
   observer.observe(root, options);
