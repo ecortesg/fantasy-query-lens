@@ -12,8 +12,8 @@ let stop = () => {};
 afterEach(() => stop());
 
 /** A scanned page whose watcher scans again, as the content script does. */
-function watched(tab = '<table><tr><td>Jahmyr Gibbs</td></tr></table>') {
-  const doc = page(`<div id="tab">${tab}</div><div id="ad"></div>`);
+function watched(tab = '<table><tr><td>Jahmyr Gibbs</td></tr></table>', other = '') {
+  const doc = page(`<div id="tab">${tab}</div><div id="other">${other}</div><div id="ad"></div>`);
   const request = { type: 'fq-lens:scan' as const, players: [gibbs], kinds: {} };
   scanPage(doc, request);
   const remark = vi.fn(() => void scanPage(doc, request));
@@ -47,6 +47,18 @@ describe('keepMarked', () => {
     await settle();
     expect(remark.mock.calls).toEqual([[false]]);
     expect(marked(doc)).toEqual(['Jahmyr Gibbs']);
+  });
+
+  it('marks a tab again while another table keeps its marks, as on Yahoo with a K tab', async () => {
+    // Yahoo's PPR table keeps the user's RBs while the Half-PPR table changes tabs.
+    const table = '<table><tr><td>Jahmyr Gibbs</td></tr></table>';
+    const { doc, remark, showTab } = watched(table, table);
+    showTab('<table><tr><td>Brandon Aubrey</td></tr></table>');
+    await settle();
+    showTab(table);
+    await settle();
+    expect(remark.mock.calls).toEqual([[true], [false]]);
+    expect(marked(doc)).toEqual(['Jahmyr Gibbs', 'Jahmyr Gibbs']);
   });
 
   it('stays quiet when other parts of the page change', async () => {
