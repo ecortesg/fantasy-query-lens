@@ -68,6 +68,24 @@ describe('Fantasy Footballers', () => {
     const { lists } = scan(fixture('ffballers-qb-week3'), [lamar]);
     expect(lists.map((l) => [l.positions, l.rankers[0]!.ranks])).toEqual([[['QB'], { '4881': 1 }]]);
   });
+
+  it('gives a defense the rank of its own row, not of the row where it is the opponent with no "vs."', () => {
+    // The Opp column writes a home opponent bare: "Washington Commanders WAS (7) NYG 11".
+    const giants = player('NYG', 'New York Giants', ['DEF'], 'NYG');
+    const bengals = player('CIN', 'Cincinnati Bengals', ['DEF'], 'CIN');
+    const { lists } = scan(fixture('ffballers-dst-week5'), [giants, bengals]);
+    expect(lists.map((l) => [l.positions, l.rankers.map((r) => [r.name, r.ranks])])).toEqual([
+      [
+        ['DEF'],
+        [
+          ['Consensus', { NYG: 18, CIN: 2 }],
+          ['Andy', { NYG: 18, CIN: 2 }],
+          ['Jason', { NYG: 18, CIN: 3 }],
+          ['Mike', { NYG: 18, CIN: 2 }],
+        ],
+      ],
+    ]);
+  });
 });
 
 describe('tables with no <th> header row', () => {
