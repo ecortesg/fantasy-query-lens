@@ -19,7 +19,7 @@ _Avoid_: roster position
 STD, HALF or PPR. Sleeper Leagues get it from their points per reception. A manual League sets it by hand, and can change it with Edit League. It picks which table a Scan reads when a page has one for each format. When any list is in the League's format, lists in other formats are not used (ADR-0009).
 
 **Scan**:
-One reading of the page the user is on: the user's players and the active League's available players found on it and, when the page ranks them, the Ranked Lists. It reads only what the page shows (ADR-0001). A toolbar click scans any page; the panel's Scan button works only on sites the user allowed (ADR-0002). A new tab or page, or a change to the scanned page, keeps the last Scan until the user scans or removes its last list (ADR-0007, ADR-0009).
+One reading of the page the user is on: the user's players and the active League's available players found on it and, when the page ranks them, the Ranked Lists. It reads only what the page shows (ADR-0001). A toolbar click scans any page; the panel's Scan button works only on sites the user allowed (ADR-0002). A new tab or page, a change to the scanned page, or closing the panel keeps the last Scan until the user scans or removes its last list (ADR-0007, ADR-0009).
 
 **Ranked List**:
 Players in a ranker's order with their rank numbers, covering one or more positions. A positional list covers one position. A cross-position list (FLEX, overall) covers several. The rank comes from the page's Rank cell, not from row order, so a sorted table still reads right.

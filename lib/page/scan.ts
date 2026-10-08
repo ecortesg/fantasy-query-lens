@@ -18,8 +18,8 @@ export type ScanRequest = {
 /** New colors once the panel has built the Lineup. */
 export type KindsUpdate = { type: 'fq-lens:kinds'; kinds: Record<string, MarkKind> };
 
-/** The page removed the last Scan's marks, so the panel no longer shows what the page shows. */
-export type PageChanged = { type: 'fq-lens:changed' };
+/** The page read again after it drew new content, such as a tab click. The panel compares, and keeps its lists (ADR-0009). */
+export type PageView = { type: 'fq-lens:view'; result: ScanResult };
 
 /** The user removed the Scan's last list, so its marks go too. */
 export type ClearMarks = { type: 'fq-lens:clear' };
