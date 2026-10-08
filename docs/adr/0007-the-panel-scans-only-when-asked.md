@@ -1,6 +1,6 @@
 # The panel scans only when asked
 
-A Scan runs on a toolbar click, on the panel's Scan button, and on a League change (for the page in front, if the panel read it). On a site the user scanned and allowed, a page or tab they open is scanned too (ADR-0010). Elsewhere a new tab or page does not scan: the panel keeps the last Lineup, and its button says "Scan page" (not "Rescan").
+A Scan runs on the panel's Scan button and on a League change (for the page in front, if the panel read it). On a site the user scanned and allowed, a page or tab they open is scanned too (ADR-0010). Elsewhere a new tab or page does not scan: the panel keeps the last Lineup, and its button says "Scan page" (not "Rescan").
 
 ## Why
 

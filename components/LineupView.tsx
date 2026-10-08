@@ -23,11 +23,9 @@ type Props = {
   onForget: () => void;
   /** The Source card's button: Scan page or Rescan. */
   action: React.ReactNode;
-  /** Shown after the Lineup, before its lists. */
-  children?: React.ReactNode;
 };
 
-export function LineupView({ league, byId, source, page, stored, onKinds, onForget, action, children }: Props) {
+export function LineupView({ league, byId, source, page, stored, onKinds, onForget, action }: Props) {
   // The lists kept from every page of this Source (ADR-0004).
   const lists = listsForLeague(listsFromSource(stored, source.site, source.week), league.scoring);
   const names = rankerNames(lists);
@@ -70,7 +68,6 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
         <SourceCard title={title} line={<>{page?.lists.length ? 'Not scanned' : 'No ranked lists'}{found && ` · ${found}`}</>} action={action} />
         <div className="space-y-6 px-3 py-3">
           <RosterSection league={league} byId={byId} found={onPage} />
-          {children}
         </div>
       </>
     );
@@ -157,8 +154,6 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
             {showUpgrades && <PickupGroups pickups={upgrades} byId={byId} badgeOf={badgeOf} />}
           </Section>
         )}
-
-        {children}
 
         <details className="text-xs text-neutral-500">
           <summary className="cursor-pointer select-none">Ranks from {used.length === 1 ? '1 list' : `${used.length} lists`}</summary>

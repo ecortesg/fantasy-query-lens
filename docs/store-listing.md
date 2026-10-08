@@ -57,11 +57,11 @@ Screenshots and tiles must be JPEG or PNG with no alpha. A macOS screenshot has 
 
 **Permission justifications:**
 
-- `activeTab`: reads the rankings page in the current tab when the user clicks the toolbar icon or presses the shortcut.
+- `activeTab`: after the user clicks the toolbar icon or presses the shortcut, lets the panel see the current tab's address, to ask for access to that site, and read that page once if the user declines.
 - `sidePanel`: shows the extension's interface in Chrome's side panel, beside the rankings page. WXT adds it to the manifest.
 - `scripting`: runs the scan and the highlight in that tab.
 - `storage`: keeps the user's Leagues, their Scans and the player list on the device.
-- Optional host permissions (`https://*/*`, `http://*/*`): asked only when the user clicks "Allow" in the panel, for one site or for all sites. They let the panel's Scan button rescan that site without a toolbar click, and let the panel mark the user's players on that site's other pages and after a reload. Rankings pages are on many different sites, so no fixed list of hosts works.
+- Optional host permissions (`https://*/*`, `http://*/*`): asked only when the user clicks Scan in the panel, for that one site (or "Allow all sites" when the panel cannot see the address). They let Lens scan the rankings pages and tabs the user opens on that site, also after a reload. Rankings pages are on many different sites, so no fixed list of hosts works.
 
 **Remote code:** No. All code is in the package.
 

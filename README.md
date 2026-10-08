@@ -18,8 +18,8 @@ Domain language is in `CONTEXT.md`; decisions are in `docs/adr/`. Store release 
 
 1. `pnpm install`, then `pnpm dev`. WXT opens a Chrome window with the extension loaded. To use your own Chrome instead, run `pnpm build` and load `.output/chrome-mv3` with "Load unpacked" in `chrome://extensions`.
 2. Click the Lens icon (or press Alt+Shift+L) to open the side panel. Add a League: a Sleeper username, or a manual League.
-3. Open a rankings page and click the Lens icon again. The panel scans the page, highlights your players, and suggests a lineup. To let the panel's Scan button work on that site by itself, use "Allow on this site".
-4. On a site that shows one position at a time, scan each position page (or click each Yahoo tab while the panel is open). The lineup merges them.
+3. Open a rankings page, click the Lens icon, then Scan. Chrome asks once for access to the site. The panel highlights your players and suggests a lineup.
+4. On a site that shows one position at a time, open each position page or tab. With access, Lens scans each one by itself, and the lineup merges them.
 
 The player list comes from Fantasy Query's `/api/lens/players` in production. To work on that route, run Fantasy Query locally and copy `.env.example` to `.env`.
 
