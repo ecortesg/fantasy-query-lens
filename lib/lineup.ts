@@ -5,8 +5,7 @@ import type { Player, Position } from './players';
 export type RankSet = { heading: string; positions: Position[]; ranks: Record<string, number> };
 
 export type Starter =
-  /** `byPositionRank`: no list covers the slot, so the best rank in a position list starts. A guess. */
-  | { slot: Slot; playerId: string; rank: number; from: RankSet; byPositionRank?: true }
+  | { slot: Slot; playerId: string; rank: number; from: RankSet }
   /** No list, or set of position lists, covers every position the slot accepts. */
   | { slot: Slot; missing: 'list' }
   /** Lists cover the slot, but none ranks a player still left for it. */
@@ -32,8 +31,8 @@ const positionOrder: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB
  * so a FLEX list, when there is one, ranks the RB slots too. A list that ranks
  * none of the players left for a slot (a short preview of a longer list) passes
  * the slot to the next list. With no such list, as on a site with no FLEX page,
- * the best rank in the position lists starts, marked as a guess: WR #18 and
- * RB #18 are not worth the same.
+ * the best rank in the position lists starts. It is a guess, as WR18 and RB18
+ * are not worth the same, and its `from` shows it.
  */
 export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlayer[], lists: readonly RankSet[]): Lineup {
   const byId = new Map(roster.map((r) => [r.player.id, r.player]));
@@ -72,7 +71,7 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
             .sort((a, b) => a.rank - b.rank)[0]
         : undefined;
       if (guess) used.add(guess.playerId);
-      starters[i] = guess ? { slot, ...guess, byPositionRank: true } : { slot, missing: 'list' };
+      starters[i] = guess ? { slot, ...guess } : { slot, missing: 'list' };
       continue;
     }
     const pick = candidates

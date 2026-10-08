@@ -17,7 +17,7 @@ export function availablePlayers(league: League, players: Iterable<Player>): Pla
  */
 export type Pickup = { playerId: string; rank: number; from: RankSet } & (
   | { slot: Slot }
-  | { replaces: { playerId: string; rank: number } }
+  | { replaces: { playerId: string; rank: number; from: RankSet } }
   | { over: { playerId: string; rank: number } }
 );
 
@@ -69,7 +69,7 @@ export function findPickups({ slots, roster, lists, starters, rostered, byId }: 
     const replaced = starting.find((s) => !afterIds.has(s.playerId));
     // With no starter replaced, the player fills an empty Slot, which has its best player already.
     if (!entry || !('playerId' in entry) || !replaced) continue;
-    starts.push({ playerId: id, rank: entry.rank, from: entry.from, replaces: { playerId: replaced.playerId, rank: replaced.rank } });
+    starts.push({ playerId: id, rank: entry.rank, from: entry.from, replaces: { playerId: replaced.playerId, rank: replaced.rank, from: replaced.from } });
   }
   const order = (p: (typeof starts)[number]) => starting.findIndex((s) => s.playerId === p.replaces.playerId);
   for (const pickup of starts.sort((a, b) => order(a) - order(b) || a.rank - b.rank)) {

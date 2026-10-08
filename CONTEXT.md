@@ -32,7 +32,7 @@ The person or column a list's ranks come from. A table with several ranker colum
 _Avoid_: expert, analyst (except when quoting a site)
 
 **Lineup**:
-The suggestion: each Slot filled with the best-ranked eligible player still left (from the widest list that covers the Slot, or the next one when that list ranks no one left; with no such list, the best rank in the position lists, shown as a guess), then the bench in rank order, then the players the page does not rank.
+The suggestion: each Slot filled with the best-ranked eligible player still left (from the widest list that covers the Slot, or the next one when that list ranks no one left; with no such list, the best rank in the position lists: a guess, shown as "WR18"), then the bench in rank order, then the players the page does not rank.
 
 **Available player**:
 A player on no team in a Sleeper League, at a position one of its Slots takes. A manual League has none, as the extension does not know its other teams. A Scan looks for them by name (ADR-0006).

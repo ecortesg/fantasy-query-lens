@@ -28,12 +28,12 @@ describe('buildLineup', () => {
     expect(lineup.bench).toEqual([{ playerId: 'qb1', rank: 8, from: qbs }]);
   });
 
-  it('fills FLEX from position lists by the best position rank, marked as a guess', () => {
+  it('fills FLEX from position lists by the best position rank', () => {
     const wrs = list('WR', ['WR'], { wr1: 4 });
     const tes = list('TE', ['TE'], { te1: 1 });
     const lineup = buildLineup(['RB', 'FLEX'], roster, [rbs, wrs, tes]);
     expect(picks(lineup)).toEqual(['RB:rb1', 'FLEX:te1']);
-    expect(lineup.starters[1]).toEqual({ slot: 'FLEX', playerId: 'te1', rank: 1, from: tes, byPositionRank: true });
+    expect(lineup.starters[1]).toEqual({ slot: 'FLEX', playerId: 'te1', rank: 1, from: tes });
   });
 
   it('cannot fill FLEX when the position lists miss one of its positions', () => {
@@ -52,7 +52,7 @@ describe('buildLineup', () => {
 
   it('fills SUPER_FLEX for sure only from a list across QB, RB, WR and TE', () => {
     const guess = buildLineup(['SUPER_FLEX'], roster, [qbs, flex]).starters[0];
-    expect(guess).toMatchObject({ playerId: 'qb2', byPositionRank: true });
+    expect(guess).toMatchObject({ playerId: 'qb2', from: qbs });
     const overall = list('Overall', ['QB', 'RB', 'WR', 'TE'], { rb2: 1, qb2: 2 });
     expect(picks(buildLineup(['QB', 'SUPER_FLEX'], roster, [overall]))).toEqual(['QB:qb2', 'SUPER_FLEX:rb2']);
   });
