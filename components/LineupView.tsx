@@ -118,7 +118,16 @@ export function LineupView({ league, byId, result, stored, outdated, onKinds, on
         >
           {lineup.starters.map((s, i) =>
             'playerId' in s ? (
-              <Line key={s.playerId} badge={s.slot} kind="starter" id={s.playerId} player={byId.get(s.playerId)} rank={s.rank} strong />
+              <Line
+                key={s.playerId}
+                badge={s.slot}
+                kind="starter"
+                id={s.playerId}
+                player={byId.get(s.playerId)}
+                rank={s.rank}
+                note={s.byPositionRank && `by ${badgeOf(s.playerId)} rank`}
+                strong
+              />
             ) : (
               <li key={`missing-${i}`} className="flex items-center gap-3 py-2">
                 <Badge text={s.slot} />
