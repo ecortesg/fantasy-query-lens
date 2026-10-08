@@ -35,6 +35,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   const [scanning, setScanning] = useState(false);
   /** The user's last Scan could not read the page. */
   const [blocked, setBlocked] = useState(false);
+  /** The host whose access the user just declined in Chrome's dialog. */
+  const [denied, setDenied] = useState<string>();
   /** The active tab's URL, when Chrome shows it: on an allowed site, or after a toolbar click. */
   const activeUrl = useRef<string | undefined>(undefined);
 
@@ -132,12 +134,15 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   /**
    * Scan turns Lens on for the site: Chrome asks for access once, then the
    * site's pages and tabs scan by themselves (ADR-0010). Chrome asks only
-   * within the click, so the request comes first. A "No" still scans this page
-   * once, through activeTab.
+   * within the click, so the request comes first. A "No" means no Scan.
    */
   const scanClicked = async () => {
     const pattern = sitePattern(activeUrl.current);
-    if (pattern) await browser.permissions.request({ origins: [pattern] }).catch(() => false);
+    setDenied(undefined);
+    if (pattern && !(await browser.permissions.request({ origins: [pattern] }).catch(() => false))) {
+      setDenied(new URL(activeUrl.current!).host);
+      return;
+    }
     scan();
   };
 
@@ -153,6 +158,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       if (win !== windowId.current) return;
       setActiveTab(id);
       setBlocked(false);
+      setDenied(undefined);
     };
     const forget = (id: number) => setRead((r) => (r?.tabId === id ? undefined : r));
     const onUpdated = (id: number, change: { status?: string }) => {
@@ -252,6 +258,11 @@ export function ScanPanel({ league, leagues, byId }: Props) {
             {allowAll}
           </div>
         )}
+        {denied && (
+          <p className="border-t border-neutral-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
+            Lens needs access to {denied} to scan it. Click Scan to ask again.
+          </p>
+        )}
         <LineupView
           league={league}
           byId={byId}
@@ -269,6 +280,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     <>
       {blocked ? (
         <SourceCard title="Lens cannot read this page" line="Click the Lens icon in the toolbar, then Scan." action={allowAll} />
+      ) : denied ? (
+        <SourceCard title={`No access to ${denied}`} line="Lens needs access to scan it. Click Scan to ask again." action={scanButton} />
       ) : scanning ? (
         <SourceCard title="Reading the page…" line="Your players, then the ranks." action={scanButton} />
       ) : (
