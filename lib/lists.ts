@@ -6,11 +6,12 @@ import type { Position } from './players';
 const formatOrder: ScoringFormat[] = ['STD', 'HALF', 'PPR'];
 
 /**
- * The lists a League reads, in page order. When the page shows the same list
- * once per scoring format, the League's format wins, else the nearest one.
- * A list whose format the page does not state is always kept.
+ * The lists a League reads, in page order. When any list is in the League's
+ * format, lists in other formats are dropped (ADR-0009). Else each list keeps
+ * its nearest format. A list whose format the page does not state is always kept.
  */
 export function listsForLeague<T extends RankedList>(lists: readonly T[], scoring: ScoringFormat): T[] {
+  if (lists.some((l) => l.format === scoring)) return lists.filter((l) => !l.format || l.format === scoring);
   const distance = (format: ScoringFormat) => Math.abs(formatOrder.indexOf(format) - formatOrder.indexOf(scoring));
   const sameList = (l: RankedList) => `${l.positions.toSorted()}|${l.rankers.map((r) => r.name)}`;
   const nearest = new Map<string, number>();

@@ -1,6 +1,6 @@
 # The panel scans only when asked
 
-A Scan runs on a toolbar click, on the panel's Scan button, and on a League change (for the scanned page, if it is still open). A new tab or page does not scan: the panel keeps the last Scan, and its button says "Scan page" (not "Rescan") until the user scans. The scanned page still rescans itself when it changes, such as a click on Yahoo's RB tab (ADR-0004).
+A Scan runs on a toolbar click, on the panel's Scan button, and on a League change (for the scanned page, if it is still open). A new tab or page does not scan: the panel keeps the last Scan, and its button says "Scan page" (not "Rescan") until the user scans. A change to the scanned page does not scan it either (ADR-0009).
 
 ## Why
 

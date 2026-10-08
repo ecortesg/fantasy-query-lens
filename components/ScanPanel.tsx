@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { refreshRoster, type League } from '@/lib/league';
 import type { MarkKind } from '@/lib/page/highlight';
-import type { KindsUpdate, ScanRequest, ScanResult, ScanUpdate } from '@/lib/page/scan';
+import type { KindsUpdate, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { availablePlayers } from '@/lib/pickups';
 import { saveScan, scansItem } from '@/lib/scans';
 import type { Player } from '@/lib/players';
@@ -19,8 +19,8 @@ const MIN_BUSY_MS = 400;
 type Props = { league: League; leagues: readonly League[]; byId: ReadonlyMap<string, Player> };
 
 /**
- * The last Scan stays when the user goes to another tab or page, until they
- * scan again (ADR-0007). Only the scanned page rescans itself, when it changes.
+ * The last Scan stays when the user goes to another tab or page, or changes the
+ * page, until they scan again (ADR-0007, ADR-0009).
  */
 export function ScanPanel({ league, leagues, byId }: Props) {
   const stored = useStorageItem(scansItem);
@@ -127,24 +127,12 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     };
   }, []);
 
-  // The scanned page scanned itself again after it changed.
-  const scannedTab = scanned?.tabId;
-  useEffect(() => {
-    const onMessage = (message: ScanUpdate, sender: { tab?: { id?: number } }) => {
-      if (message?.type === 'fq-lens:update' && sender.tab?.id === scannedTab) {
-        saveScan(message.result).catch((e) => console.error('Lens: could not keep the lists', e));
-        setResult(message.result);
-      }
-    };
-    browser.runtime.onMessage.addListener(onMessage);
-    return () => browser.runtime.onMessage.removeListener(onMessage);
-  }, [scannedTab]);
-
   // Another League: scan the scanned page again for its Roster and Pickups, if it is still there.
   useEffect(() => {
     if (scanned && !scanned.gone) scan(scanned.tabId, { quiet: true });
   }, [league.id]); // Only a League change triggers this.
 
+  const scannedTab = scanned?.tabId;
   const sendKinds = useCallback(
     (kinds: Record<string, MarkKind>) => {
       kindsRef.current = kinds;

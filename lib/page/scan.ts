@@ -28,9 +28,6 @@ export type ScanResult = {
   scannedAt: number;
 };
 
-/** A Scan the page ran again by itself after it changed (ADR-0004). */
-export type ScanUpdate = { type: 'fq-lens:update'; result: ScanResult };
-
 export function scanPage(doc: Document, request: ScanRequest): ScanResult {
   clearHighlights(doc.body);
   const hits = findPlayers(doc.body, request.players);
