@@ -1,6 +1,6 @@
 import { browser, defineContentScript } from '#imports';
-import { recolor } from '@/lib/page/highlight';
-import { scanPage, type KindsUpdate, type PageChanged, type ScanRequest } from '@/lib/page/scan';
+import { clearHighlights, recolor } from '@/lib/page/highlight';
+import { scanPage, type ClearMarks, type KindsUpdate, type PageChanged, type ScanRequest } from '@/lib/page/scan';
 import { watchMarks } from '@/lib/page/watch';
 
 /**
@@ -22,7 +22,7 @@ export default defineContentScript({
       browser.runtime.sendMessage(changed).catch(() => {});
     };
 
-    browser.runtime.onMessage.addListener((message: ScanRequest | KindsUpdate, _sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((message: ScanRequest | KindsUpdate | ClearMarks, _sender, sendResponse) => {
       if (message?.type === 'fq-lens:scan') {
         stopWatching();
         const result = scanPage(document, message);
@@ -30,6 +30,9 @@ export default defineContentScript({
         sendResponse(result);
       } else if (message?.type === 'fq-lens:kinds') {
         recolor(document.body, (id) => message.kinds[id]);
+      } else if (message?.type === 'fq-lens:clear') {
+        stopWatching();
+        clearHighlights(document.body);
       }
     });
   },

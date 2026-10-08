@@ -21,6 +21,9 @@ export type KindsUpdate = { type: 'fq-lens:kinds'; kinds: Record<string, MarkKin
 /** The page removed the last Scan's marks, so the panel no longer shows what the page shows. */
 export type PageChanged = { type: 'fq-lens:changed' };
 
+/** The user removed the Scan's last list, so its marks go too. */
+export type ClearMarks = { type: 'fq-lens:clear' };
+
 export type ScanResult = {
   url: string;
   title: string;

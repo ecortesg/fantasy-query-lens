@@ -73,7 +73,24 @@ describe('withoutList', () => {
     const qb = storedLists(last)[0]!;
     await forgetList(qb);
     // The panel shows the kept lists plus the last Scan's.
-    const shown = mergeLists(await scansItem.getValue(), storedLists(withoutList(last, qb)));
+    const kept = await scansItem.getValue();
+    const shown = mergeLists(kept, storedLists(withoutList(last, qb, kept)!));
     expect(shown.map((l) => l.heading)).toEqual(['RB']);
+  });
+
+  it('ends the Scan when its Source has no list left', async () => {
+    const last = result(3, [list(['QB'], 1)]);
+    await saveScan(last);
+    await saveScan(result(4, [list(['RB'], 4)]));
+    const qb = storedLists(last)[0]!;
+    expect(withoutList(last, qb, await scansItem.getValue())).toBeUndefined();
+  });
+
+  it('keeps the Scan while another page of its Source has a list', async () => {
+    const last = result(3, [list(['QB'], 1)]);
+    await saveScan(last);
+    await saveScan(result(3, [list(['RB'], 4)]));
+    const qb = storedLists(last)[0]!;
+    expect(withoutList(last, qb, await scansItem.getValue())?.lists).toEqual([]);
   });
 });

@@ -72,7 +72,7 @@ export function LineupView({ league, byId, result, stored, changed, onKinds, onF
   if (!ranker)
     return (
       <>
-        <SourceCard title={title} line={<>Ranks none of your players · {found} · {scannedAt}</>} action={action} />
+        <SourceCard title={title} line={<>No ranked lists · {found} · {scannedAt}</>} action={action} />
         <div className="space-y-6 px-3 py-3">
           <RosterSection league={league} byId={byId} found={onPage} />
           {children}
