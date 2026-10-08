@@ -4,35 +4,36 @@ import { buildLineup, type RankSet, type RosterPlayer } from '@/lib/lineup';
 import { listLabel, listsForLeague, rankerIn, rankerNames, sourceTitle } from '@/lib/lists';
 import type { MarkKind } from '@/lib/page/highlight';
 import type { ScanResult } from '@/lib/page/scan';
+import type { PageSource } from '@/lib/page/source';
 import { findPickups, type Pickup } from '@/lib/pickups';
 import type { Player } from '@/lib/players';
-import { keyOf, listsFromSource, mergeLists, storedLists, type StoredList } from '@/lib/scans';
+import { keyOf, listsFromSource, type StoredList } from '@/lib/scans';
 import { asideClass, Badge, count, Line, RosterSection, Section, Select, SourceCard, Swatch, statusNote } from './ui';
 
 type Props = {
   league: League;
   byId: ReadonlyMap<string, Player>;
-  result: ScanResult;
+  source: PageSource;
+  /** The page in front, when it shows this Source. */
+  page?: ScanResult;
   stored: readonly StoredList[];
-  /** The page now ranks otherwise than the kept lists. */
+  /** The page ranks a player otherwise than the kept lists. */
   outdated: boolean;
   /** Called with the colors the page's marks should have. */
   onKinds: (kinds: Record<string, MarkKind>) => void;
-  /** Removes a list from the Lineup until the next Scan of its page. */
+  /** Removes a kept list until the next Scan of its page. */
   onForget: (list: StoredList) => void;
-  /** The Source card's button: Rescan. */
+  /** The Source card's button: Scan page or Rescan. */
   action: React.ReactNode;
   /** Shown after the Lineup, before its lists. */
   children?: React.ReactNode;
 };
 
-export function LineupView({ league, byId, result, stored, outdated, onKinds, onForget, action, children }: Props) {
-  // This page's lists plus those kept from other pages of the same Source (ADR-0004).
-  // This page's are merged here too, so they count before storage catches up.
-  const merged = mergeLists(stored, storedLists(result));
-  const lists = listsForLeague(listsFromSource(merged, result.source.site, result.source.week), league.scoring);
+export function LineupView({ league, byId, source, page, stored, outdated, onKinds, onForget, action, children }: Props) {
+  // The lists kept from every page of this Source (ADR-0004).
+  const lists = listsForLeague(listsFromSource(stored, source.site, source.week), league.scoring);
   const names = rankerNames(lists);
-  const pageDefault = rankerNames(listsForLeague(result.lists, league.scoring))[0];
+  const pageDefault = page && rankerNames(listsForLeague(page.lists, league.scoring))[0];
   const [chosen, setChosen] = useState<string>();
   const [showUpgrades, setShowUpgrades] = useState(false);
   const ranker = [chosen, pageDefault, names[0]].find((n) => n && names.includes(n));
@@ -48,7 +49,6 @@ export function LineupView({ league, byId, result, stored, outdated, onKinds, on
   const pickups = rostered ? findPickups({ slots: league.slots, roster, lists: sets, starters: lineup.starters, rostered: new Set(rostered), byId }) : [];
   const starts = pickups.filter((p) => !('over' in p));
   const upgrades = pickups.filter((p) => 'over' in p);
-  const onThisPage = new Set(storedLists(result).map(keyOf));
 
   const kinds = useMemo(() => {
     const starters = new Set(lineup.starters.flatMap((s) => ('playerId' in s ? [s.playerId] : [])));
@@ -60,19 +60,16 @@ export function LineupView({ league, byId, result, stored, outdated, onKinds, on
   const kindsKey = JSON.stringify(kinds);
   useEffect(() => onKinds(kinds), [kindsKey]); // Only a change of colors triggers this.
 
-  const onPage = new Set(result.found);
-  const found = `${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
-  const title = sourceTitle(result.source);
-  const scannedAt = outdated ? (
-    <span className="text-amber-700">Ranks out of date</span>
-  ) : (
-    `scanned ${scanTime(result.scannedAt)}`
-  );
+  const onPage = page && new Set(page.found);
+  const found = onPage && ` · ${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
+  const title = sourceTitle(source);
+  const scannedAt = Math.max(...lists.map((l) => l.scannedAt));
+  const note = outdated ? <span className="text-amber-700">Ranks out of date</span> : `scanned ${scanTime(scannedAt)}`;
 
   if (!ranker)
     return (
       <>
-        <SourceCard title={title} line={<>No ranked lists · {found} · {scannedAt}</>} action={action} />
+        <SourceCard title={title} line={<>{page?.lists.length ? 'Not scanned' : 'No ranked lists'}{found}</>} action={action} />
         <div className="space-y-6 px-3 py-3">
           <RosterSection league={league} byId={byId} found={onPage} />
           {children}
@@ -95,8 +92,7 @@ export function LineupView({ league, byId, result, stored, outdated, onKinds, on
               ranker
             )}
             <span>
-              {' '}
-              · {found} · {scannedAt}
+              {found} · {note}
             </span>
           </>
         }
@@ -166,7 +162,7 @@ export function LineupView({ league, byId, result, stored, outdated, onKinds, on
                     {l.heading || listLabel(l.positions)}
                   </p>
                   <p>
-                    {onThisPage.has(keyOf(l)) ? 'Last scan' : 'Earlier scan'} · {scanTime(l.scannedAt)}
+                    Scanned {scanTime(l.scannedAt)}
                     {l.format && l.format !== league.scoring && (
                       <span className="text-amber-700">
                         {' '}

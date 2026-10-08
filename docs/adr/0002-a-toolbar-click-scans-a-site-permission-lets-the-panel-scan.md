@@ -3,7 +3,7 @@
 The extension lives in Chrome's side panel, which stays open while the user scrolls. It asks for no host permissions at install.
 
 - **A toolbar click (or its keyboard shortcut)** opens the panel and scans the tab. The click grants `activeTab`, so this Scan needs no prompt.
-- **The panel's Scan button** works only on sites the user allowed. The panel does not scan a tab by itself (ADR-0007). After a toolbar Scan, the panel offers "Allow on this site" and "Allow on all sites" as optional host permissions, and Chrome remembers the answer.
+- **The panel's Scan button** works only on sites the user allowed. On those sites, once scanned, the panel also reads each page by itself to mark the players, and after a reload (ADR-0010). After a toolbar Scan, the panel offers "Allow on this site" and "Allow on all sites" as optional host permissions, and Chrome remembers the answer.
 
 ## Why
 

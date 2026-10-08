@@ -3,13 +3,14 @@ import { browser } from '#imports';
 import { refreshRoster, type League } from '@/lib/league';
 import type { MarkKind } from '@/lib/page/highlight';
 import type { ClearMarks, KindsUpdate, PageView, ScanRequest, ScanResult } from '@/lib/page/scan';
+import { siteOf, type PageSource } from '@/lib/page/source';
 import { availablePlayers } from '@/lib/pickups';
-import { forgetList, isOutdated, mergeLists, saveScan, scansItem, storedLists, withoutList, type StoredList } from '@/lib/scans';
+import { forgetList, isOutdated, keyOf, listsFromSource, saveScan, scansItem, storedLists, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
 import { LineupView } from './LineupView';
 import { RosterSection, SourceCard } from './ui';
 import { useStorageItem } from './use-storage-item';
-import { ALL_SITES, lastScanItem, scanRequestItem, scanTab, sitePattern } from '@/lib/scan-client';
+import { ALL_SITES, scanRequestItem, scanTab, sitePattern } from '@/lib/scan-client';
 
 /** A toolbar click this recent still asks the panel to scan when the panel opens. */
 const FRESH_REQUEST_MS = 10_000;
@@ -18,15 +19,20 @@ const MIN_BUSY_MS = 400;
 
 type Props = { league: League; leagues: readonly League[]; byId: ReadonlyMap<string, Player> };
 
+/** What a tab showed when it was last read. */
+type Read = { tabId: number; result: ScanResult };
+
 /**
- * The last Scan stays when the user goes to another tab or page, changes the
- * page, or closes the panel, until they scan again (ADR-0007, ADR-0009).
+ * The panel follows the active tab. On a site the user scanned, it reads each
+ * page the tab shows, marks the players, and shows the Lineup kept for the
+ * page's site and week; only a Scan keeps lists. Elsewhere, such as on Sleeper,
+ * the last Lineup stays (ADR-0010).
  */
 export function ScanPanel({ league, leagues, byId }: Props) {
   const stored = useStorageItem(scansItem);
-  const [result, setResult] = useState<ScanResult>();
-  /** The tab of `result`, whether it still shows that page, and whether the page now ranks otherwise. */
-  const [scanned, setScanned] = useState<{ tabId: number; gone: boolean; outdated?: boolean }>();
+  const [read, setRead] = useState<Read>();
+  /** The Source of the last Lineup shown, kept on pages the panel cannot read. */
+  const [lastSource, setLastSource] = useState<PageSource>();
   const [activeTab, setActiveTab] = useState<number>();
   const [scanning, setScanning] = useState(false);
   /** The user's last Scan could not read the page. */
@@ -34,22 +40,23 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   /** The site pattern to offer access for, once a toolbar Scan showed us the URL. */
   const [askFor, setAskFor] = useState<string>();
 
-  // The latest League, read by scans that listeners start.
+  // The latest values, read by listeners and scans they start.
   const leagueRef = useRef(league);
   leagueRef.current = league;
   const leaguesRef = useRef(leagues);
   leaguesRef.current = leagues;
-  // The Lineup's latest colors. A scan paints its own defaults, so it sends these again when it ends.
+  const storedRef = useRef(stored);
+  storedRef.current = stored;
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+  const readRef = useRef(read);
+  readRef.current = read;
+  // The Lineup's latest colors, so a page is marked in them from the start.
   const kindsRef = useRef<Record<string, MarkKind> | undefined>(undefined);
   // Only the latest scan may write its result; an older one that ends later is dropped.
   const latestScan = useRef(0);
   // The latest Scan that shows the busy state; a quiet one does not count.
   const latestShown = useRef(0);
-  // The latest Scan and kept lists, read by listeners.
-  const resultRef = useRef(result);
-  resultRef.current = result;
-  const storedRef = useRef(stored);
-  storedRef.current = stored;
   const windowId = useRef<number | undefined>(undefined);
   useEffect(() => {
     browser.windows.getCurrent().then((w) => (windowId.current = w.id));
@@ -66,7 +73,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return {
       type: 'fq-lens:scan',
       players: [...[...ids].flatMap((pid) => byId.get(pid) ?? []), ...available],
-      kinds: Object.fromEntries(current.roster.map((e) => [e.playerId, 'bench'])),
+      kinds: kindsRef.current ?? Object.fromEntries(current.roster.map((e) => [e.playerId, 'bench'])),
     };
   }, [byId]);
 
@@ -83,10 +90,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       }
       try {
         const next = await scanTab(id, await requestFor());
-        if (next.kind === 'done') {
-          await saveScan(next.result).catch((e) => console.error('Lens: could not keep the lists', e));
-          if (run === latestScan.current && kindsRef.current) sendKindsTo(id, kindsRef.current);
-        }
+        if (next.kind === 'done') await saveScan(next.result).catch((e) => console.error('Lens: could not keep the lists', e));
         if (run !== latestScan.current) return;
         if (next.kind === 'no-access') {
           if (!quiet) setBlocked(true);
@@ -95,8 +99,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
         const pattern = sitePattern(next.result.url);
         const allowed = pattern && (await browser.permissions.contains({ origins: [pattern] }));
         if (run !== latestScan.current) return;
-        setResult(next.result);
-        setScanned({ tabId: id, gone: false });
+        setRead({ tabId: id, result: next.result });
         setAskFor(allowed ? undefined : pattern);
       } finally {
         if (!quiet) {
@@ -108,35 +111,17 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     [requestFor],
   );
 
-  /** What the page ranks now against the kept lists. The Lineup does not change (ADR-0009). */
-  const compare = (view: ScanResult) => {
-    const last = resultRef.current;
-    if (!last) return;
-    const kept = mergeLists(storedRef.current ?? [], storedLists(last));
-    setScanned((s) => s && { ...s, gone: false, outdated: isOutdated(view, last, kept) });
-  };
-
-  // The scanned page loaded again: on a site the user allowed, mark it again and compare.
-  // With no access, Chrome lets no script in until the next toolbar click.
-  const markAgain = async (id: number) => {
-    const next = await scanTab(id, await requestFor());
-    if (next.kind !== 'done') return;
-    if (kindsRef.current) sendKindsTo(id, kindsRef.current);
-    compare(next.result);
-  };
-  const markAgainRef = useRef(markAgain);
-  markAgainRef.current = markAgain;
-
-  // The last Scan, when the panel opens again. A Scan that started first wins.
-  useEffect(() => {
-    lastScanItem.getValue().then(async (last) => {
-      if (!last || latestScan.current) return;
-      const tab = await browser.tabs.get(last.tabId).catch(() => undefined);
-      if (latestScan.current) return;
-      setResult(last.result);
-      setScanned({ tabId: last.tabId, gone: tab?.url !== last.result.url });
-    });
-  }, []);
+  /** Reads a page of a site the user scanned. Keeps no list. With no access, Chrome lets no script in. */
+  const look = useCallback(
+    async (tabId: number) => {
+      const tab = await browser.tabs.get(tabId).catch(() => undefined);
+      const site = siteOf(tab?.url);
+      if (!site || !storedRef.current?.some((l) => l.site === site)) return;
+      const next = await scanTab(tabId, await requestFor());
+      if (next.kind === 'done' && tabId === activeTabRef.current) setRead({ tabId, result: next.result });
+    },
+    [requestFor],
+  );
 
   // A toolbar click, now or just before the panel opened.
   useEffect(() => {
@@ -146,68 +131,82 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return scanRequestItem.watch((req) => req && scan(req.tabId));
   }, [scan]);
 
-  // Which tab the button scans, and whether the scanned page is still there. Neither scans.
+  // The page in front: read it once the kept lists are loaded.
+  const loaded = stored !== undefined;
+  useEffect(() => {
+    if (loaded && activeTab !== undefined) look(activeTab);
+  }, [loaded, activeTab, look]);
+
+  // Which tab is in front, and its loads.
   useEffect(() => {
     const onActivated = ({ tabId: id, windowId: win }: { tabId: number; windowId: number }) => {
       if (win !== windowId.current) return;
       setActiveTab(id);
       setBlocked(false);
     };
-    const onGone = (id: number) => setScanned((s) => (s?.tabId === id ? { ...s, gone: true } : s));
-    const onUpdated = (id: number, change: { status?: string }, tab: { url?: string }) => {
-      if (change.status === 'loading') onGone(id);
-      else if (change.status === 'complete' && tab.url && tab.url === resultRef.current?.url) markAgainRef.current(id);
+    const forget = (id: number) => setRead((r) => (r?.tabId === id ? undefined : r));
+    const onUpdated = (id: number, change: { status?: string }) => {
+      if (change.status === 'loading') forget(id);
+      else if (change.status === 'complete' && id === activeTabRef.current) look(id);
     };
     browser.tabs.onActivated.addListener(onActivated);
     browser.tabs.onUpdated.addListener(onUpdated);
-    browser.tabs.onRemoved.addListener(onGone);
+    browser.tabs.onRemoved.addListener(forget);
     return () => {
       browser.tabs.onActivated.removeListener(onActivated);
       browser.tabs.onUpdated.removeListener(onUpdated);
-      browser.tabs.onRemoved.removeListener(onGone);
+      browser.tabs.onRemoved.removeListener(forget);
     };
-  }, []);
+  }, [look]);
 
-  // Another League: scan the scanned page again for its Roster and Pickups, if it is still there.
-  useEffect(() => {
-    if (scanned && !scanned.gone) scan(scanned.tabId, { quiet: true });
-  }, [league.id]); // Only a League change triggers this.
-
-  // The scanned page drew new content over our marks, such as on a tab click.
-  const scannedTab = scanned?.tabId;
+  // The page in front drew new content, such as on a tab click, and read it again.
   useEffect(() => {
     const onMessage = (message: PageView, sender: { tab?: { id?: number } }) => {
-      if (message?.type === 'fq-lens:view' && sender.tab?.id === scannedTab) compare(message.result);
+      const id = sender.tab?.id;
+      if (message?.type === 'fq-lens:view' && id !== undefined && id === activeTabRef.current) setRead({ tabId: id, result: message.result });
     };
     browser.runtime.onMessage.addListener(onMessage);
     return () => browser.runtime.onMessage.removeListener(onMessage);
-  }, [scannedTab]);
+  }, []);
 
+  // Another League: scan the page in front again for its Roster and Pickups (ADR-0007).
   useEffect(() => {
-    if (result && scannedTab !== undefined) lastScanItem.setValue({ tabId: scannedTab, result });
-  }, [result, scannedTab]);
+    const r = readRef.current;
+    if (r && r.tabId === activeTabRef.current) scan(r.tabId, { quiet: true });
+  }, [league.id]); // Only a League change triggers this.
+
+  const kept = stored ?? [];
+  const onPage = read !== undefined && read.tabId === activeTab;
+  const pageSource = onPage ? read.result.source : undefined;
+  const pageHasLists = !!pageSource && listsFromSource(kept, pageSource.site, pageSource.week).length > 0;
+  const source = pageSource ?? lastSource;
+  useEffect(() => {
+    if (loaded) setLastSource((s) => s ?? latestSource(storedRef.current ?? []));
+  }, [loaded]);
+  useEffect(() => {
+    if (pageHasLists) setLastSource(pageSource);
+  }, [pageHasLists, pageSource]);
 
   const sendKinds = useCallback(
     (kinds: Record<string, MarkKind>) => {
       kindsRef.current = kinds;
-      if (scannedTab !== undefined) sendKindsTo(scannedTab, kinds);
+      const r = readRef.current;
+      if (r && r.tabId === activeTabRef.current) sendKindsTo(r.tabId, kinds);
     },
-    [scannedTab],
+    [],
   );
 
   const forget = (list: StoredList) => {
     forgetList(list);
-    const next = result && withoutList(result, list, stored ?? []);
-    if (next) return setResult(next);
-    // No list left: back to "No scan yet", with no marks on the page.
-    if (scanned) {
+    if (listsFromSource(kept, list.site, list.week).some((l) => keyOf(l) !== keyOf(list))) return;
+    // The Source's last list: its marks go, and the panel starts again.
+    if (read && read.result.source.site === list.site && read.result.source.week === list.week) {
       const clear: ClearMarks = { type: 'fq-lens:clear' };
-      browser.tabs.sendMessage(scanned.tabId, clear).catch(() => {});
+      browser.tabs.sendMessage(read.tabId, clear).catch(() => {});
+      setRead(undefined);
     }
     kindsRef.current = undefined;
-    lastScanItem.setValue(null);
-    setResult(undefined);
-    setScanned(undefined);
+    setLastSource(undefined);
   };
 
   /** Resolves true when the user granted access. */
@@ -217,11 +216,13 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return granted;
   };
 
-  const onScannedTab = scanned !== undefined && scanned.tabId === activeTab;
+  // "Rescan" when every list on the page is kept, "Scan page" when the page has any to add.
+  const keys = new Set(kept.map(keyOf));
+  const pageKept = onPage && read.result.lists.length > 0 && storedLists(read.result).every((l) => keys.has(keyOf(l)));
   const scanButton = (
     // The spinner covers the label, so the button keeps its width and the title does not wrap.
     <button className="btn relative shrink-0" disabled={scanning} aria-busy={scanning} onClick={() => scan()}>
-      <span className={scanning ? 'invisible' : undefined}>{onScannedTab ? 'Rescan' : 'Scan page'}</span>
+      <span className={scanning ? 'invisible' : undefined}>{pageKept ? 'Rescan' : 'Scan page'}</span>
       {scanning && (
         <span className="absolute inset-0 flex items-center justify-center">
           <Spinner />
@@ -239,17 +240,17 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   );
   const allowCard = askFor && (
     <div className="flex items-center gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-xs text-neutral-600">
-      <p className="flex-1">Rescan {new URL(askFor.replace('/*', '')).host} from the panel, and keep highlights after a reload.</p>
+      <p className="flex-1">Keep Lens on {new URL(askFor.replace('/*', '')).host}: highlights on its other pages and after a reload.</p>
       <button className="rounded-md border border-neutral-300 px-2.5 py-1 font-medium text-neutral-900" onClick={() => allow([askFor])}>
         Allow
       </button>
     </div>
   );
 
-  if (result)
+  if (source)
     return (
       <>
-        {/* The last Scan stays below: this page was not read. */}
+        {/* The Lineup stays below: this page was not read. */}
         {blocked && (
           <div className="flex items-center gap-3 border-t border-neutral-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
             <p className="flex-1">Lens cannot read this page. Click the Lens icon in the toolbar to scan it.</p>
@@ -259,9 +260,10 @@ export function ScanPanel({ league, leagues, byId }: Props) {
         <LineupView
           league={league}
           byId={byId}
-          result={result}
-          stored={stored ?? []}
-          outdated={!!(onScannedTab && scanned.outdated)}
+          source={source}
+          page={onPage ? read.result : undefined}
+          stored={kept}
+          outdated={onPage && isOutdated(read.result, kept)}
           onKinds={sendKinds}
           onForget={forget}
           action={scanButton}
@@ -285,6 +287,12 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       </div>
     </>
   );
+}
+
+/** The Source of the newest kept list, for a panel that opens on a page it cannot read. */
+function latestSource(kept: readonly StoredList[]): PageSource | undefined {
+  const newest = kept.reduce<StoredList | undefined>((a, l) => (!a || l.scannedAt > a.scannedAt ? l : a), undefined);
+  return newest && { site: newest.site, siteName: newest.siteName, week: newest.week };
 }
 
 const Spinner = () => (
