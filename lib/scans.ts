@@ -35,18 +35,6 @@ export function saveScan(result: ScanResult): Promise<void> {
   return queue;
 }
 
-/**
- * The Scan without one of its lists, so a list the user removed stays gone until they scan again.
- * Undefined when its Source has no list left, kept or scanned: the panel then starts again.
- */
-export function withoutList(result: ScanResult, list: StoredList, kept: readonly StoredList[]): ScanResult | undefined {
-  const key = keyOf(list);
-  const stored = storedLists(result);
-  const next = { ...result, lists: result.lists.filter((_, i) => keyOf(stored[i]!) !== key) };
-  const keptLeft = listsFromSource(kept, result.source.site, result.source.week).some((l) => keyOf(l) !== key);
-  return next.lists.length || keptLeft ? next : undefined;
-}
-
 /** Removes a kept list the user no longer wants in the lineup. */
 export function forgetList(list: StoredList): Promise<void> {
   const key = keyOf(list);
@@ -61,12 +49,10 @@ export const listsFromSource = (all: readonly StoredList[], site: string, week: 
   all.filter((l) => l.site === site && l.week === week);
 
 /**
- * Whether the page now shows other ranks than the kept lists: a kept list
- * whose ranks differ, or ranks of another Source. A list that is not kept, such
- * as an unscanned tab, does not count: its Slot already asks for a Scan.
+ * Whether the page ranks a player otherwise than the kept list it shows. A
+ * list that is not kept, such as an unscanned tab, does not count.
  */
-export function isOutdated(view: ScanResult, scan: ScanResult, kept: readonly StoredList[]): boolean {
-  if (view.source.site !== scan.source.site || view.source.week !== scan.source.week) return view.lists.length > 0;
+export function isOutdated(view: ScanResult, kept: readonly StoredList[]): boolean {
   const byKey = new Map(kept.map((l) => [keyOf(l), l]));
   return storedLists(view).some((list) =>
     list.rankers.some((ranker) => {
