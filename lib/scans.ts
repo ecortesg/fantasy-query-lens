@@ -35,11 +35,16 @@ export function saveScan(result: ScanResult): Promise<void> {
   return queue;
 }
 
-/** The Scan without one of its lists, so a list the user removed stays gone until they scan again. */
-export function withoutList(result: ScanResult, list: StoredList): ScanResult {
+/**
+ * The Scan without one of its lists, so a list the user removed stays gone until they scan again.
+ * Undefined when its Source has no list left, kept or scanned: the panel then starts again.
+ */
+export function withoutList(result: ScanResult, list: StoredList, kept: readonly StoredList[]): ScanResult | undefined {
   const key = keyOf(list);
   const stored = storedLists(result);
-  return { ...result, lists: result.lists.filter((_, i) => keyOf(stored[i]!) !== key) };
+  const next = { ...result, lists: result.lists.filter((_, i) => keyOf(stored[i]!) !== key) };
+  const keptLeft = listsFromSource(kept, result.source.site, result.source.week).some((l) => keyOf(l) !== key);
+  return next.lists.length || keptLeft ? next : undefined;
 }
 
 /** Removes a kept list the user no longer wants in the lineup. */

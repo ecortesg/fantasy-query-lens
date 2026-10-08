@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { refreshRoster, type League } from '@/lib/league';
 import type { MarkKind } from '@/lib/page/highlight';
-import type { KindsUpdate, PageChanged, ScanRequest, ScanResult } from '@/lib/page/scan';
+import type { ClearMarks, KindsUpdate, PageChanged, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { availablePlayers } from '@/lib/pickups';
 import { forgetList, saveScan, scansItem, withoutList, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
@@ -152,7 +152,16 @@ export function ScanPanel({ league, leagues, byId }: Props) {
 
   const forget = (list: StoredList) => {
     forgetList(list);
-    setResult((r) => r && withoutList(r, list));
+    const next = result && withoutList(result, list, stored ?? []);
+    if (next) return setResult(next);
+    // No list left: back to "No scan yet", with no marks on the page.
+    if (scanned) {
+      const clear: ClearMarks = { type: 'fq-lens:clear' };
+      browser.tabs.sendMessage(scanned.tabId, clear).catch(() => {});
+    }
+    kindsRef.current = undefined;
+    setResult(undefined);
+    setScanned(undefined);
   };
 
   /** Resolves true when the user granted access. */
@@ -162,11 +171,11 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return granted;
   };
 
-  const onScannedPage = scanned && !scanned.gone && scanned.tabId === activeTab;
+  const onScannedTab = scanned !== undefined && scanned.tabId === activeTab;
   const scanButton = (
     // The spinner covers the label, so the button keeps its width and the title does not wrap.
     <button className="btn relative shrink-0" disabled={scanning} aria-busy={scanning} onClick={() => scan()}>
-      <span className={scanning ? 'invisible' : undefined}>{onScannedPage ? 'Rescan' : 'Scan page'}</span>
+      <span className={scanning ? 'invisible' : undefined}>{onScannedTab ? 'Rescan' : 'Scan page'}</span>
       {scanning && (
         <span className="absolute inset-0 flex items-center justify-center">
           <Spinner />
@@ -206,7 +215,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
           byId={byId}
           result={result}
           stored={stored ?? []}
-          changed={!!(onScannedPage && scanned.changed)}
+          changed={!!(onScannedTab && (scanned.gone || scanned.changed))}
           onKinds={sendKinds}
           onForget={forget}
           action={scanButton}
