@@ -158,7 +158,7 @@ export function LineupView({ league, byId, result, stored, onKinds, action, chil
                     {l.heading || listLabel(l.positions)}
                   </p>
                   <p>
-                    {onThisPage.has(keyOf(l)) ? 'This page' : `Earlier scan · ${scanTime(l.scannedAt)}`}
+                    {onThisPage.has(keyOf(l)) ? 'Last scan' : 'Earlier scan'} · {scanTime(l.scannedAt)}
                     {l.format && l.format !== league.scoring && (
                       <span className="text-amber-700">
                         {' '}

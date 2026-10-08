@@ -1,6 +1,6 @@
 # A page change waits for a Scan, and the League's format wins
 
-A Scan runs only when the user asks for one (ADR-0007). A change to the scanned page, such as a click on Yahoo's RB tab, no longer scans the page again: the panel keeps the last Scan, and the user clicks Rescan. When any list the Lineup could use is in the League's Scoring Format, the lists in other formats are dropped. A position that only another format ranks shows "Scan … rankings", and the user opens that tab and rescans.
+A Scan runs only when the user asks for one (ADR-0007). A change to the scanned page, such as a click on Yahoo's RB tab, no longer scans the page again: the panel keeps the last Scan, and the user clicks Rescan. When the page removes the last Scan's marks, as a tab click does, the panel says so above the Lineup, with a Rescan button. Changes that leave the marks, such as ads, say nothing. When any list the Lineup could use is in the League's Scoring Format, the lists in other formats are dropped. A position that only another format ranks shows "Scan … rankings", and the user opens that tab and rescans.
 
 ## Why
 
