@@ -61,7 +61,7 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
   useEffect(() => onKinds(kinds), [kindsKey]); // Only a change of colors triggers this.
 
   const onPage = page && new Set(page.found);
-  const found = onPage && ` · ${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
+  const found = onPage && `${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
   const title = sourceTitle(source);
   const scannedAt = Math.max(...lists.map((l) => l.scannedAt));
   const note = outdated ? <span className="text-amber-700">Ranks out of date</span> : `scanned ${scanTime(scannedAt)}`;
@@ -69,7 +69,7 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
   if (!ranker)
     return (
       <>
-        <SourceCard title={title} line={<>{page?.lists.length ? 'Not scanned' : 'No ranked lists'}{found}</>} action={action} />
+        <SourceCard title={title} line={<>{page?.lists.length ? 'Not scanned' : 'No ranked lists'}{found && ` · ${found}`}</>} action={action} />
         <div className="space-y-6 px-3 py-3">
           <RosterSection league={league} byId={byId} found={onPage} />
           {children}
@@ -92,7 +92,9 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
               ranker
             )}
             <span>
-              {found} · {note}
+              {' · '}
+              {found && `${found} · `}
+              {note}
             </span>
           </>
         }
