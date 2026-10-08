@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { slotName, type League } from '@/lib/league';
 import { buildLineup, type RankSet, type RosterPlayer } from '@/lib/lineup';
-import { listLabel, listsForLeague, rankerIn, rankerNames, sourceTitle } from '@/lib/lists';
+import { listLabel, listsForLeague, rankerIn, rankerNames, rankLabel, sourceTitle } from '@/lib/lists';
 import type { MarkKind } from '@/lib/page/highlight';
 import type { ScanResult } from '@/lib/page/scan';
 import type { PageSource } from '@/lib/page/source';
@@ -116,12 +116,21 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
         >
           {lineup.starters.map((s, i) =>
             'playerId' in s ? (
-              <Line key={s.playerId} badge={s.slot} kind="starter" id={s.playerId} player={byId.get(s.playerId)} rank={s.rank} strong />
+              <Line
+                key={s.playerId}
+                badge={s.slot}
+                kind="starter"
+                id={s.playerId}
+                player={byId.get(s.playerId)}
+                rank={s.rank}
+                from={s.from}
+                strong
+              />
             ) : (
               <li key={`missing-${i}`} className="flex items-center gap-3 py-2">
                 <Badge text={s.slot} />
                 <span className="text-xs text-neutral-400">
-                  {s.missing === 'list' ? `Scan ${slotName(s.slot)} rankings` : `No ranked ${slotName(s.slot)} to start`}
+                  {s.missing === 'list' ? `Scan ${slotName(s.slot)} rankings` : 'No ranked player left'}
                 </span>
               </li>
             ),
@@ -130,7 +139,7 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
 
         <Section title="Bench">
           {lineup.bench.map((b) => (
-            <Line key={b.playerId} badge={badgeOf(b.playerId)} kind="bench" id={b.playerId} player={byId.get(b.playerId)} rank={b.rank} />
+            <Line key={b.playerId} badge={badgeOf(b.playerId)} kind="bench" id={b.playerId} player={byId.get(b.playerId)} rank={b.rank} from={b.from} />
           ))}
           {[...lineup.unranked, ...lineup.out].map((id) => (
             <Line key={id} badge={badgeOf(id)} id={id} player={byId.get(id)} note={statusNote(status.get(id), 'Unranked')} faded />
@@ -190,23 +199,23 @@ function PickupGroups({ pickups, byId, badgeOf }: { pickups: Pickup[]; byId: Rea
     <Fragment key={group}>
       <li className="pt-3 pb-1 text-xs font-medium text-neutral-700">{group}</li>
       {members.map((p) => (
-        <Line key={p.playerId} badge={badgeOf(p.playerId)} kind="pickup" id={p.playerId} player={byId.get(p.playerId)} rank={p.rank} />
+        <Line key={p.playerId} badge={badgeOf(p.playerId)} kind="pickup" id={p.playerId} player={byId.get(p.playerId)} rank={p.rank} from={p.from} />
       ))}
     </Fragment>
   ));
 }
 
 /**
- * "For empty DEF", "Starts over J.K. Dobbins (DEN) · #58", or "Better than
- * Diontae Johnson (PIT) · #143": the full name, as a roster can have two Johnsons.
+ * "For empty DEF", "Starts over J.K. Dobbins (DEN) · RB58", or "Better than
+ * Diontae Johnson (PIT) · WR143": the full name, as a roster can have two Johnsons.
  */
 function pickupGroup(pickup: Pickup, byId: ReadonlyMap<string, Player>): string {
   if ('slot' in pickup) return `For empty ${slotName(pickup.slot)}`;
-  const [verb, other] = 'replaces' in pickup ? ['Starts over', pickup.replaces] : ['Better than', pickup.over];
+  const [verb, other, from] = 'replaces' in pickup ? ['Starts over', pickup.replaces, pickup.replaces.from] : ['Better than', pickup.over, pickup.from];
   const player = byId.get(other.playerId);
   // A defense's name is its team.
   const name = !player ? 'your player' : player.positions.includes('DEF') ? player.name : `${player.name} (${player.team})`;
-  return `${verb} ${name} · #${other.rank}`;
+  return `${verb} ${name} · ${rankLabel(from.positions)}${other.rank}`;
 }
 
 /** "3:09 PM" today, else with the date. */

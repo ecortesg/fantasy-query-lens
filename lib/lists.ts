@@ -33,6 +33,9 @@ export const rankerIn = (list: RankedList, name: string | undefined): Ranker =>
 /** "Yahoo Sports · Week 3": the panel's title for a Source. Its Ranker has its own menu. */
 export const sourceTitle = (source: PageSource) => `${source.siteName} · ${source.week ? `Week ${source.week}` : 'Week unknown'}`;
 
+/** "RB" in "RB19": the list a rank is from, as ranks from different lists are on different scales. */
+export const rankLabel = (positions: readonly Position[]) => (positions.length ? listLabel(positions).replace('SUPERFLEX', 'SF') : '#');
+
 /** A short name for what a list covers: "RB", "FLEX", "SUPERFLEX", or the positions joined. */
 export function listLabel(positions: readonly Position[]): string {
   const key = positions.toSorted().join(',');

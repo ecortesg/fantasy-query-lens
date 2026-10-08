@@ -6,10 +6,10 @@ export type RankSet = { heading: string; positions: Position[]; ranks: Record<st
 
 export type Starter =
   | { slot: Slot; playerId: string; rank: number; from: RankSet }
-  /** No list covers every position the slot accepts, e.g. FLEX from positional lists. */
+  /** No list, or set of position lists, covers every position the slot accepts. */
   | { slot: Slot; missing: 'list' }
-  /** Lists cover the slot, but none ranks a player still left for it. */
-  | { slot: Slot; missing: 'player'; from: RankSet };
+  /** Lists cover the slot, but none ranks a player still left for it: its Pickups come from `from`. */
+  | { slot: Slot; missing: 'player'; from: RankSet[] };
 
 export type Lineup = {
   starters: Starter[];
@@ -30,7 +30,9 @@ const positionOrder: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB
  * first. Each slot reads the widest list that covers every position it accepts,
  * so a FLEX list, when there is one, ranks the RB slots too. A list that ranks
  * none of the players left for a slot (a short preview of a longer list) passes
- * the slot to the next list.
+ * the slot to the next list. With no such list, as on a site with no FLEX page,
+ * the best rank in the position lists starts. It is a guess, as WR18 and RB18
+ * are not worth the same, and its `from` shows it.
  */
 export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlayer[], lists: readonly RankSet[]): Lineup {
   const byId = new Map(roster.map((r) => [r.player.id, r.player]));
@@ -46,6 +48,8 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
     lists
       .filter((l) => eligible.every((p) => coverage.get(l)!.includes(p)))
       .sort((a, b) => coverage.get(b)!.length - coverage.get(a)!.length);
+  // The list that ranks a player for one of his positions, widest first.
+  const ownList = (p: Player) => p.positions.flatMap((pos) => listsFor([pos])).find((l) => l.ranks[p.id] !== undefined);
 
   const active = roster.filter((r) => r.status === 'active').map((r) => r.player);
   const used = new Set<string>();
@@ -55,16 +59,28 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
   for (const { slot, i } of fillOrder) {
     const eligible: readonly Position[] = slotEligibility[slot];
     const candidates = listsFor(eligible);
+    const left = active.filter((p) => !used.has(p.id) && p.positions.some((pos) => eligible.includes(pos)));
     if (candidates.length === 0) {
-      starters[i] = { slot, missing: 'list' };
+      const positionLists = [...new Set(eligible.flatMap((pos) => listsFor([pos])))];
+      if (!eligible.every((pos) => listsFor([pos]).length > 0)) {
+        starters[i] = { slot, missing: 'list' };
+        continue;
+      }
+      const guess = left
+        .flatMap((p) => {
+          const from = ownList(p);
+          return from ? [{ playerId: p.id, rank: from.ranks[p.id]!, from }] : [];
+        })
+        .sort((a, b) => a.rank - b.rank)[0];
+      if (guess) used.add(guess.playerId);
+      starters[i] = guess ? { slot, ...guess } : { slot, missing: 'player', from: positionLists };
       continue;
     }
-    const left = active.filter((p) => !used.has(p.id) && p.positions.some((pos) => eligible.includes(pos)));
     const pick = candidates
       .map((list) => ({ list, best: left.filter((p) => list.ranks[p.id] !== undefined).sort((a, b) => list.ranks[a.id]! - list.ranks[b.id]!)[0] }))
       .find((c) => c.best);
     if (!pick) {
-      starters[i] = { slot, missing: 'player', from: candidates[0]! };
+      starters[i] = { slot, missing: 'player', from: [candidates[0]!] };
       continue;
     }
     used.add(pick.best!.id);
@@ -75,7 +91,7 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
   const unranked: string[] = [];
   for (const player of active) {
     if (used.has(player.id)) continue;
-    const from = player.positions.flatMap((pos) => listsFor([pos])).find((l) => l.ranks[player.id] !== undefined);
+    const from = ownList(player);
     if (!from) unranked.push(player.id);
     else bench.push({ playerId: player.id, rank: from.ranks[player.id]!, from });
   }

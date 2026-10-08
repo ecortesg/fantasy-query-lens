@@ -81,6 +81,11 @@ describe('findPickups', () => {
     expect(pickups(['RB', 'DEF'], [defenses])).toEqual(['BUF for DEF']);
   });
 
+  it('fills an empty FLEX from the best rank across the position lists', () => {
+    const lists = [list(['RB'], { rb1: 1, rb2: 2, fa1: 5 }), list(['WR'], { wr: 3 }), list(['TE'], { te: 9 })];
+    expect(pickups(['RB', 'RB', 'FLEX'], lists)).toEqual(['wr for FLEX']);
+  });
+
   it('fills an empty Slot only with a player it takes', () => {
     const superflex = list(['QB', 'RB', 'WR', 'TE'], { qb: 1, wr: 2, rb1: 3, rb2: 4 });
     expect(pickups(['RB', 'RB', 'WR'], [superflex])).toEqual(['wr for WR']);

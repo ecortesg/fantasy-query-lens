@@ -17,7 +17,7 @@ export function availablePlayers(league: League, players: Iterable<Player>): Pla
  */
 export type Pickup = { playerId: string; rank: number; from: RankSet } & (
   | { slot: Slot }
-  | { replaces: { playerId: string; rank: number } }
+  | { replaces: { playerId: string; rank: number; from: RankSet } }
   | { over: { playerId: string; rank: number } }
 );
 
@@ -50,10 +50,16 @@ export function findPickups({ slots, roster, lists, starters, rostered, byId }: 
   for (const starter of starters) {
     if (!('missing' in starter) || starter.missing !== 'player') continue;
     const eligible: readonly Position[] = slotEligibility[starter.slot];
-    const best = byRank(starter.from).find(([id]) => free(id) && byId.get(id)?.positions.some((p) => eligible.includes(p)));
+    // The best rank across the Slot's lists: one list that covers it, or one per position.
+    const best = starter.from
+      .flatMap((list) => {
+        const top = byRank(list).find(([id]) => free(id) && byId.get(id)?.positions.some((p) => eligible.includes(p)));
+        return top ? [{ playerId: top[0], rank: top[1], from: list }] : [];
+      })
+      .sort((a, b) => a.rank - b.rank)[0];
     if (!best) continue;
-    seen.add(best[0]);
-    pickups.push({ playerId: best[0], rank: best[1], from: starter.from, slot: starter.slot });
+    seen.add(best.playerId);
+    pickups.push({ ...best, slot: starter.slot });
   }
 
   // Every ranked player, as one can start without passing a starter: a Slot whose widest list
@@ -69,7 +75,7 @@ export function findPickups({ slots, roster, lists, starters, rostered, byId }: 
     const replaced = starting.find((s) => !afterIds.has(s.playerId));
     // With no starter replaced, the player fills an empty Slot, which has its best player already.
     if (!entry || !('playerId' in entry) || !replaced) continue;
-    starts.push({ playerId: id, rank: entry.rank, from: entry.from, replaces: { playerId: replaced.playerId, rank: replaced.rank } });
+    starts.push({ playerId: id, rank: entry.rank, from: entry.from, replaces: { playerId: replaced.playerId, rank: replaced.rank, from: replaced.from } });
   }
   const order = (p: (typeof starts)[number]) => starting.findIndex((s) => s.playerId === p.replaces.playerId);
   for (const pickup of starts.sort((a, b) => order(a) - order(b) || a.rank - b.rank)) {

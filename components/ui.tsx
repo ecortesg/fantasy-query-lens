@@ -1,4 +1,6 @@
 import type { League, RosterEntry } from '@/lib/league';
+import type { RankSet } from '@/lib/lineup';
+import { rankLabel } from '@/lib/lists';
 import { markStyles } from '@/lib/page/highlight';
 import { positions, type Player } from '@/lib/players';
 
@@ -80,12 +82,14 @@ type LineProps = {
   id: string;
   player: Player | undefined;
   rank?: number;
+  /** The list the rank is from. */
+  from?: RankSet;
   note?: string;
   strong?: boolean;
   faded?: boolean;
 };
 
-export function Line({ badge, kind, id, player, rank, note, strong, faded }: LineProps) {
+export function Line({ badge, kind, id, player, rank, from, note, strong, faded }: LineProps) {
   return (
     <li className="flex items-center gap-3 py-2">
       <Badge text={badge} kind={kind} />
@@ -96,9 +100,10 @@ export function Line({ badge, kind, id, player, rank, note, strong, faded }: Lin
       </span>
       {note && <span className="shrink-0 text-xs text-neutral-500">{note}</span>}
       {rank !== undefined && (
-        <span className="w-10 shrink-0 text-right text-base font-medium tabular-nums">
-          <span className="font-normal text-neutral-400">#</span>
-          {rank}
+        // Two fixed columns, so labels and numbers line up from row to row.
+        <span className="flex shrink-0 items-baseline tabular-nums">
+          <span className="w-9 text-right text-xs text-neutral-400">{from ? rankLabel(from.positions) : '#'}</span>
+          <span className="w-7 text-right text-base font-medium">{rank}</span>
         </span>
       )}
     </li>
