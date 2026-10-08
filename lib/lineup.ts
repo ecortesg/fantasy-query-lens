@@ -8,8 +8,8 @@ export type Starter =
   | { slot: Slot; playerId: string; rank: number; from: RankSet }
   /** No list, or set of position lists, covers every position the slot accepts. */
   | { slot: Slot; missing: 'list' }
-  /** Lists cover the slot, but none ranks a player still left for it. */
-  | { slot: Slot; missing: 'player'; from: RankSet };
+  /** Lists cover the slot, but none ranks a player still left for it: its Pickups come from `from`. */
+  | { slot: Slot; missing: 'player'; from: RankSet[] };
 
 export type Lineup = {
   starters: Starter[];
@@ -61,24 +61,26 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
     const candidates = listsFor(eligible);
     const left = active.filter((p) => !used.has(p.id) && p.positions.some((pos) => eligible.includes(pos)));
     if (candidates.length === 0) {
-      const covered = eligible.every((pos) => listsFor([pos]).length > 0);
-      const guess = covered
-        ? left
-            .flatMap((p) => {
-              const from = ownList(p);
-              return from ? [{ playerId: p.id, rank: from.ranks[p.id]!, from }] : [];
-            })
-            .sort((a, b) => a.rank - b.rank)[0]
-        : undefined;
+      const positionLists = [...new Set(eligible.flatMap((pos) => listsFor([pos])))];
+      if (!eligible.every((pos) => listsFor([pos]).length > 0)) {
+        starters[i] = { slot, missing: 'list' };
+        continue;
+      }
+      const guess = left
+        .flatMap((p) => {
+          const from = ownList(p);
+          return from ? [{ playerId: p.id, rank: from.ranks[p.id]!, from }] : [];
+        })
+        .sort((a, b) => a.rank - b.rank)[0];
       if (guess) used.add(guess.playerId);
-      starters[i] = guess ? { slot, ...guess } : { slot, missing: 'list' };
+      starters[i] = guess ? { slot, ...guess } : { slot, missing: 'player', from: positionLists };
       continue;
     }
     const pick = candidates
       .map((list) => ({ list, best: left.filter((p) => list.ranks[p.id] !== undefined).sort((a, b) => list.ranks[a.id]! - list.ranks[b.id]!)[0] }))
       .find((c) => c.best);
     if (!pick) {
-      starters[i] = { slot, missing: 'player', from: candidates[0]! };
+      starters[i] = { slot, missing: 'player', from: [candidates[0]!] };
       continue;
     }
     used.add(pick.best!.id);

@@ -36,6 +36,15 @@ describe('buildLineup', () => {
     expect(lineup.starters[1]).toEqual({ slot: 'FLEX', playerId: 'te1', rank: 1, from: tes });
   });
 
+  it('says no one is left for FLEX, not that a list is missing, when the position lists rank no one left', () => {
+    const wrs = list('WR', ['WR'], {});
+    const tes = list('TE', ['TE'], {});
+    expect(buildLineup(['FLEX'], [{ player: rb1, status: 'active' }], [list('RB', ['RB'], {}), wrs, tes]).starters[0]).toMatchObject({
+      slot: 'FLEX',
+      missing: 'player',
+    });
+  });
+
   it('cannot fill FLEX when the position lists miss one of its positions', () => {
     const lineup = buildLineup(['RB', 'FLEX'], roster, [rbs]);
     expect(picks(lineup)).toEqual(['RB:rb1', 'FLEX:-list']);
@@ -59,7 +68,7 @@ describe('buildLineup', () => {
 
   it('leaves a slot empty when no list ranks a player left for it', () => {
     const tes = list('TE', ['TE'], { someoneElse: 1 });
-    expect(buildLineup(['TE'], roster, [tes]).starters).toEqual([{ slot: 'TE', missing: 'player', from: tes }]);
+    expect(buildLineup(['TE'], roster, [tes]).starters).toEqual([{ slot: 'TE', missing: 'player', from: [tes] }]);
   });
 
   it('passes a slot to the next list when a short preview has no one left for it', () => {

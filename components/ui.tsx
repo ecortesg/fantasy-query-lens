@@ -100,9 +100,10 @@ export function Line({ badge, kind, id, player, rank, from, note, strong, faded 
       </span>
       {note && <span className="shrink-0 text-xs text-neutral-500">{note}</span>}
       {rank !== undefined && (
-        <span className="min-w-10 shrink-0 text-right text-base font-medium tabular-nums">
-          <span className="mr-0.5 text-xs font-normal text-neutral-400">{from ? rankLabel(from.positions) : '#'}</span>
-          {rank}
+        // Two fixed columns, so labels and numbers line up from row to row.
+        <span className="flex shrink-0 items-baseline tabular-nums">
+          <span className="w-9 text-right text-xs text-neutral-400">{from ? rankLabel(from.positions) : '#'}</span>
+          <span className="w-7 text-right text-base font-medium">{rank}</span>
         </span>
       )}
     </li>

@@ -50,10 +50,16 @@ export function findPickups({ slots, roster, lists, starters, rostered, byId }: 
   for (const starter of starters) {
     if (!('missing' in starter) || starter.missing !== 'player') continue;
     const eligible: readonly Position[] = slotEligibility[starter.slot];
-    const best = byRank(starter.from).find(([id]) => free(id) && byId.get(id)?.positions.some((p) => eligible.includes(p)));
+    // The best rank across the Slot's lists: one list that covers it, or one per position.
+    const best = starter.from
+      .flatMap((list) => {
+        const top = byRank(list).find(([id]) => free(id) && byId.get(id)?.positions.some((p) => eligible.includes(p)));
+        return top ? [{ playerId: top[0], rank: top[1], from: list }] : [];
+      })
+      .sort((a, b) => a.rank - b.rank)[0];
     if (!best) continue;
-    seen.add(best[0]);
-    pickups.push({ playerId: best[0], rank: best[1], from: starter.from, slot: starter.slot });
+    seen.add(best.playerId);
+    pickups.push({ ...best, slot: starter.slot });
   }
 
   // Every ranked player, as one can start without passing a starter: a Slot whose widest list
