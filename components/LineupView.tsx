@@ -17,19 +17,15 @@ type Props = {
   /** The page in front, when it shows this Source. */
   page?: ScanResult;
   stored: readonly StoredList[];
-  /** The page ranks a player otherwise than the kept lists. */
-  outdated: boolean;
   /** Called with the colors the page's marks should have. */
   onKinds: (kinds: Record<string, MarkKind>) => void;
-  /** Removes a kept list until the next Scan of its page. */
-  onForget: (list: StoredList) => void;
+  /** Forgets every list of the Source's site. */
+  onForget: () => void;
   /** The Source card's button: Scan page or Rescan. */
   action: React.ReactNode;
-  /** Shown after the Lineup, before its lists. */
-  children?: React.ReactNode;
 };
 
-export function LineupView({ league, byId, source, page, stored, outdated, onKinds, onForget, action, children }: Props) {
+export function LineupView({ league, byId, source, page, stored, onKinds, onForget, action }: Props) {
   // The lists kept from every page of this Source (ADR-0004).
   const lists = listsForLeague(listsFromSource(stored, source.site, source.week), league.scoring);
   const names = rankerNames(lists);
@@ -64,7 +60,7 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
   const found = onPage && `${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
   const title = sourceTitle(source);
   const scannedAt = Math.max(...lists.map((l) => l.scannedAt));
-  const note = outdated ? <span className="text-amber-700">Ranks out of date</span> : `scanned ${scanTime(scannedAt)}`;
+  const note = `scanned ${scanTime(scannedAt)}`;
 
   if (!ranker)
     return (
@@ -72,7 +68,6 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
         <SourceCard title={title} line={<>{page?.lists.length ? 'Not scanned' : 'No ranked lists'}{found && ` · ${found}`}</>} action={action} />
         <div className="space-y-6 px-3 py-3">
           <RosterSection league={league} byId={byId} found={onPage} />
-          {children}
         </div>
       </>
     );
@@ -130,7 +125,7 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
               <li key={`missing-${i}`} className="flex items-center gap-3 py-2">
                 <Badge text={s.slot} />
                 <span className="text-xs text-neutral-400">
-                  {s.missing === 'list' ? `Scan ${slotName(s.slot)} rankings` : 'No ranked player left'}
+                  {s.missing === 'list' ? `Open ${slotName(s.slot)} rankings` : 'No ranked player left'}
                 </span>
               </li>
             ),
@@ -160,8 +155,6 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
           </Section>
         )}
 
-        {children}
-
         <details className="text-xs text-neutral-500">
           <summary className="cursor-pointer select-none">Ranks from {used.length === 1 ? '1 list' : `${used.length} lists`}</summary>
           <ul className="mt-2 divide-y divide-neutral-100 border-t border-neutral-100">
@@ -182,12 +175,12 @@ export function LineupView({ league, byId, source, page, stored, outdated, onKin
                     )}
                   </p>
                 </div>
-                <button aria-label={`Remove ${l.heading || 'list'}`} className="w-5 shrink-0 text-center text-base text-neutral-400 hover:text-red-700" onClick={() => onForget(l)}>
-                  ×
-                </button>
               </li>
             ))}
           </ul>
+          <button className="mt-2 text-neutral-500 underline hover:text-red-700" onClick={onForget}>
+            Forget {source.siteName}
+          </button>
         </details>
       </div>
     </>

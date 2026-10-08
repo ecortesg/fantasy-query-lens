@@ -1,11 +1,10 @@
 import { browser, storage } from '#imports';
 import type { ScanRequest, ScanResult } from './page/scan';
 
-/** Set by a toolbar click: the tab the side panel should scan once it is open. */
-export const scanRequestItem = storage.defineItem<{ tabId: number; at: number } | null>(
-  'session:scanRequest',
-  { fallback: null },
-);
+/** Set by a toolbar click. The click grants activeTab, so the panel can now see that tab's URL and ask for its site. */
+export const toolbarClickItem = storage.defineItem<{ tabId: number; at: number } | null>('session:toolbarClick', {
+  fallback: null,
+});
 
 export type ScanOutcome = { kind: 'done'; result: ScanResult } | { kind: 'no-access' };
 

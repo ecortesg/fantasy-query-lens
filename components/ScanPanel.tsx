@@ -5,15 +5,13 @@ import type { MarkKind } from '@/lib/page/highlight';
 import type { ClearMarks, KindsUpdate, PageView, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { siteOf, type PageSource } from '@/lib/page/source';
 import { availablePlayers } from '@/lib/pickups';
-import { forgetList, isOutdated, keyOf, listsFromSource, saveScan, scansItem, storedLists, type StoredList } from '@/lib/scans';
+import { forgetSite, listsFromSource, saveScan, scansItem, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
 import { LineupView } from './LineupView';
 import { RosterSection, SourceCard } from './ui';
 import { useStorageItem } from './use-storage-item';
-import { ALL_SITES, scanRequestItem, scanTab, sitePattern } from '@/lib/scan-client';
+import { ALL_SITES, scanTab, sitePattern, toolbarClickItem } from '@/lib/scan-client';
 
-/** A toolbar click this recent still asks the panel to scan when the panel opens. */
-const FRESH_REQUEST_MS = 10_000;
 /** The button shows its busy state at least this long, so a fast Scan still shows a reaction. */
 const MIN_BUSY_MS = 400;
 
@@ -24,9 +22,9 @@ type Read = { tabId: number; result: ScanResult };
 
 /**
  * The panel follows the active tab. On a site the user scanned, it reads each
- * page the tab shows, marks the players, and shows the Lineup kept for the
- * page's site and week; only a Scan keeps lists. Elsewhere, such as on Sleeper,
- * the last Lineup stays (ADR-0010).
+ * page and tab the user opens like a Scan: it marks the players and keeps the
+ * lists, so the Lineup for the page's site and week grows and stays current.
+ * Elsewhere, such as on Sleeper, the last Lineup stays (ADR-0010).
  */
 export function ScanPanel({ league, leagues, byId }: Props) {
   const stored = useStorageItem(scansItem);
@@ -37,8 +35,10 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   const [scanning, setScanning] = useState(false);
   /** The user's last Scan could not read the page. */
   const [blocked, setBlocked] = useState(false);
-  /** The site pattern to offer access for, once a toolbar Scan showed us the URL. */
-  const [askFor, setAskFor] = useState<string>();
+  /** The host whose access the user just declined in Chrome's dialog. */
+  const [denied, setDenied] = useState<string>();
+  /** The active tab's URL, when Chrome shows it: on an allowed site, or after a toolbar click. */
+  const activeUrl = useRef<string | undefined>(undefined);
 
   // The latest values, read by listeners and scans they start.
   const leagueRef = useRef(league);
@@ -77,6 +77,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     };
   }, [byId]);
 
+  const keep = (result: ScanResult) => saveScan(result).catch((e) => console.error('Lens: could not keep the lists', e));
+
   const scan = useCallback(
     async (target?: number, { quiet = false } = {}) => {
       const id = target ?? (await browser.tabs.query({ active: true, currentWindow: true }))[0]?.id;
@@ -90,17 +92,13 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       }
       try {
         const next = await scanTab(id, await requestFor());
-        if (next.kind === 'done') await saveScan(next.result).catch((e) => console.error('Lens: could not keep the lists', e));
+        if (next.kind === 'done') await keep(next.result);
         if (run !== latestScan.current) return;
         if (next.kind === 'no-access') {
           if (!quiet) setBlocked(true);
           return;
         }
-        const pattern = sitePattern(next.result.url);
-        const allowed = pattern && (await browser.permissions.contains({ origins: [pattern] }));
-        if (run !== latestScan.current) return;
         setRead({ tabId: id, result: next.result });
-        setAskFor(allowed ? undefined : pattern);
       } finally {
         if (!quiet) {
           await new Promise((r) => setTimeout(r, MIN_BUSY_MS - (Date.now() - started)));
@@ -111,25 +109,42 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     [requestFor],
   );
 
-  /** Reads a page of a site the user scanned. Keeps no list. With no access, Chrome lets no script in. */
+  /** Scans a page of a site the user scanned, with no click. With no access, Chrome lets no script in. */
   const look = useCallback(
     async (tabId: number) => {
       const tab = await browser.tabs.get(tabId).catch(() => undefined);
       const site = siteOf(tab?.url);
       if (!site || !storedRef.current?.some((l) => l.site === site)) return;
       const next = await scanTab(tabId, await requestFor());
-      if (next.kind === 'done' && tabId === activeTabRef.current) setRead({ tabId, result: next.result });
+      if (next.kind !== 'done') return;
+      await keep(next.result);
+      if (tabId === activeTabRef.current) setRead({ tabId, result: next.result });
     },
     [requestFor],
   );
 
-  // A toolbar click, now or just before the panel opened.
+  // The URL the Scan button asks access for. A toolbar click shows it for its tab.
   useEffect(() => {
-    scanRequestItem.getValue().then((req) => {
-      if (req && Date.now() - req.at < FRESH_REQUEST_MS) scan(req.tabId);
-    });
-    return scanRequestItem.watch((req) => req && scan(req.tabId));
-  }, [scan]);
+    if (activeTab === undefined) return;
+    const read = () => browser.tabs.get(activeTab).then((tab) => (activeUrl.current = tab.url), () => {});
+    read();
+    return toolbarClickItem.watch((click) => click?.tabId === activeTab && read());
+  }, [activeTab]);
+
+  /**
+   * Scan turns Lens on for the site: Chrome asks for access once, then the
+   * site's pages and tabs scan by themselves (ADR-0010). Chrome asks only
+   * within the click, so the request comes first. A "No" means no Scan.
+   */
+  const scanClicked = async () => {
+    const pattern = sitePattern(activeUrl.current);
+    setDenied(undefined);
+    if (pattern && !(await browser.permissions.request({ origins: [pattern] }).catch(() => false))) {
+      setDenied(new URL(activeUrl.current!).host);
+      return;
+    }
+    scan();
+  };
 
   // The page in front: read it once the kept lists are loaded.
   const loaded = stored !== undefined;
@@ -143,6 +158,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       if (win !== windowId.current) return;
       setActiveTab(id);
       setBlocked(false);
+      setDenied(undefined);
     };
     const forget = (id: number) => setRead((r) => (r?.tabId === id ? undefined : r));
     const onUpdated = (id: number, change: { status?: string }) => {
@@ -163,7 +179,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   useEffect(() => {
     const onMessage = (message: PageView, sender: { tab?: { id?: number } }) => {
       const id = sender.tab?.id;
-      if (message?.type === 'fq-lens:view' && id !== undefined && id === activeTabRef.current) setRead({ tabId: id, result: message.result });
+      if (message?.type !== 'fq-lens:view' || id === undefined || id !== activeTabRef.current) return;
+      keep(message.result).then(() => setRead({ tabId: id, result: message.result }));
     };
     browser.runtime.onMessage.addListener(onMessage);
     return () => browser.runtime.onMessage.removeListener(onMessage);
@@ -196,11 +213,10 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     [],
   );
 
-  const forget = (list: StoredList) => {
-    forgetList(list);
-    if (listsFromSource(kept, list.site, list.week).some((l) => keyOf(l) !== keyOf(list))) return;
-    // The Source's last list: its marks go, and the panel starts again.
-    if (read && read.result.source.site === list.site && read.result.source.week === list.week) {
+  // The site's lists and marks go, and Lens waits for a Scan there again.
+  const forget = (site: string) => {
+    forgetSite(site);
+    if (read && read.result.source.site === site) {
       const clear: ClearMarks = { type: 'fq-lens:clear' };
       browser.tabs.sendMessage(read.tabId, clear).catch(() => {});
       setRead(undefined);
@@ -209,20 +225,13 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     setLastSource(undefined);
   };
 
-  /** Resolves true when the user granted access. */
-  const allow = async (origins: string[]) => {
-    const granted = await browser.permissions.request({ origins });
-    if (granted) setAskFor(undefined);
-    return granted;
-  };
 
-  // "Rescan" when every list on the page is kept, "Scan page" when the page has any to add.
-  const keys = new Set(kept.map(keyOf));
-  const pageKept = onPage && read.result.lists.length > 0 && storedLists(read.result).every((l) => keys.has(keyOf(l)));
+  // "Rescan" on a site the user scanned, "Scan page" elsewhere.
+  const siteScanned = onPage && kept.some((l) => l.site === read.result.source.site);
   const scanButton = (
     // The spinner covers the label, so the button keeps its width and the title does not wrap.
-    <button className="btn relative shrink-0" disabled={scanning} aria-busy={scanning} onClick={() => scan()}>
-      <span className={scanning ? 'invisible' : undefined}>{pageKept ? 'Rescan' : 'Scan page'}</span>
+    <button className="btn relative shrink-0" disabled={scanning} aria-busy={scanning} onClick={scanClicked}>
+      <span className={scanning ? 'invisible' : undefined}>{siteScanned ? 'Rescan' : 'Scan page'}</span>
       {scanning && (
         <span className="absolute inset-0 flex items-center justify-center">
           <Spinner />
@@ -233,18 +242,10 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   const allowAll = (
     <button
       className="shrink-0 rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-xs font-medium"
-      onClick={async () => (await allow(ALL_SITES)) && scan()}
+      onClick={async () => (await browser.permissions.request({ origins: ALL_SITES })) && scan()}
     >
       Allow all sites
     </button>
-  );
-  const allowCard = askFor && (
-    <div className="flex items-center gap-3 rounded-lg border border-neutral-200 px-3 py-2 text-xs text-neutral-600">
-      <p className="flex-1">Keep Lens on {new URL(askFor.replace('/*', '')).host}: highlights on its other pages and after a reload.</p>
-      <button className="rounded-md border border-neutral-300 px-2.5 py-1 font-medium text-neutral-900" onClick={() => allow([askFor])}>
-        Allow
-      </button>
-    </div>
   );
 
   if (source)
@@ -253,9 +254,14 @@ export function ScanPanel({ league, leagues, byId }: Props) {
         {/* The Lineup stays below: this page was not read. */}
         {blocked && (
           <div className="flex items-center gap-3 border-t border-neutral-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
-            <p className="flex-1">Lens cannot read this page. Click the Lens icon in the toolbar to scan it.</p>
+            <p className="flex-1">Lens cannot read this page yet. Click the Lens icon in the toolbar, then Scan.</p>
             {allowAll}
           </div>
+        )}
+        {denied && (
+          <p className="border-t border-neutral-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
+            Lens needs access to {denied} to scan it. Click Scan to ask again.
+          </p>
         )}
         <LineupView
           league={league}
@@ -263,20 +269,19 @@ export function ScanPanel({ league, leagues, byId }: Props) {
           source={source}
           page={onPage ? read.result : undefined}
           stored={kept}
-          outdated={onPage && isOutdated(read.result, kept)}
           onKinds={sendKinds}
-          onForget={forget}
+          onForget={() => forget(source.site)}
           action={scanButton}
-        >
-          {allowCard}
-        </LineupView>
+        />
       </>
     );
 
   return (
     <>
       {blocked ? (
-        <SourceCard title="Lens cannot read this page" line="Click the Lens icon in the toolbar to scan it." action={allowAll} />
+        <SourceCard title="Lens cannot read this page" line="Click the Lens icon in the toolbar, then Scan." action={allowAll} />
+      ) : denied ? (
+        <SourceCard title={`No access to ${denied}`} line="Lens needs access to scan it. Click Scan to ask again." action={scanButton} />
       ) : scanning ? (
         <SourceCard title="Reading the page…" line="Your players, then the ranks." action={scanButton} />
       ) : (
