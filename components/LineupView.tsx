@@ -6,7 +6,7 @@ import type { MarkKind } from '@/lib/page/highlight';
 import type { ScanResult } from '@/lib/page/scan';
 import { findPickups, type Pickup } from '@/lib/pickups';
 import type { Player } from '@/lib/players';
-import { forgetList, keyOf, listsFromSource, mergeLists, storedLists, type StoredList } from '@/lib/scans';
+import { keyOf, listsFromSource, mergeLists, storedLists, type StoredList } from '@/lib/scans';
 import { asideClass, Badge, count, Line, RosterSection, Section, Select, SourceCard, Swatch, statusNote } from './ui';
 
 type Props = {
@@ -16,13 +16,15 @@ type Props = {
   stored: readonly StoredList[];
   /** Called with the colors the page's marks should have. */
   onKinds: (kinds: Record<string, MarkKind>) => void;
+  /** Removes a list from the Lineup until the next Scan of its page. */
+  onForget: (list: StoredList) => void;
   /** The Source card's button: Rescan. */
   action: React.ReactNode;
   /** Shown after the Lineup, before its lists. */
   children?: React.ReactNode;
 };
 
-export function LineupView({ league, byId, result, stored, onKinds, action, children }: Props) {
+export function LineupView({ league, byId, result, stored, onKinds, onForget, action, children }: Props) {
   // This page's lists plus those kept from other pages of the same Source (ADR-0004).
   // This page's are merged here too, so they count before storage catches up.
   const merged = mergeLists(stored, storedLists(result));
@@ -167,15 +169,9 @@ export function LineupView({ league, byId, result, stored, onKinds, action, chil
                     )}
                   </p>
                 </div>
-                {/* A list from this page comes back with the next Scan, so only kept lists can be removed.
-                    The box stays when empty, so all headings end at the same place. */}
-                <span className="w-5 shrink-0 text-center">
-                  {!onThisPage.has(keyOf(l)) && (
-                    <button aria-label={`Remove ${l.heading || 'list'}`} className="text-base text-neutral-400 hover:text-red-700" onClick={() => forgetList(l)}>
-                      ×
-                    </button>
-                  )}
-                </span>
+                <button aria-label={`Remove ${l.heading || 'list'}`} className="w-5 shrink-0 text-center text-base text-neutral-400 hover:text-red-700" onClick={() => onForget(l)}>
+                  ×
+                </button>
               </li>
             ))}
           </ul>

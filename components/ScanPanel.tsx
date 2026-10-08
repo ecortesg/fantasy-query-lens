@@ -4,7 +4,7 @@ import { refreshRoster, type League } from '@/lib/league';
 import type { MarkKind } from '@/lib/page/highlight';
 import type { KindsUpdate, PageChanged, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { availablePlayers } from '@/lib/pickups';
-import { saveScan, scansItem } from '@/lib/scans';
+import { forgetList, saveScan, scansItem, withoutList, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
 import { LineupView } from './LineupView';
 import { RosterSection, SourceCard } from './ui';
@@ -150,6 +150,11 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     [scannedTab],
   );
 
+  const forget = (list: StoredList) => {
+    forgetList(list);
+    setResult((r) => r && withoutList(r, list));
+  };
+
   /** Resolves true when the user granted access. */
   const allow = async (origins: string[]) => {
     const granted = await browser.permissions.request({ origins });
@@ -204,7 +209,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
             {allowAll}
           </div>
         )}
-        <LineupView league={league} byId={byId} result={result} stored={stored ?? []} onKinds={sendKinds} action={scanButton}>
+        <LineupView league={league} byId={byId} result={result} stored={stored ?? []} onKinds={sendKinds} onForget={forget} action={scanButton}>
           {allowCard}
         </LineupView>
       </>

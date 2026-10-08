@@ -35,6 +35,13 @@ export function saveScan(result: ScanResult): Promise<void> {
   return queue;
 }
 
+/** The Scan without one of its lists, so a list the user removed stays gone until they scan again. */
+export function withoutList(result: ScanResult, list: StoredList): ScanResult {
+  const key = keyOf(list);
+  const stored = storedLists(result);
+  return { ...result, lists: result.lists.filter((_, i) => keyOf(stored[i]!) !== key) };
+}
+
 /** Removes a kept list the user no longer wants in the lineup. */
 export function forgetList(list: StoredList): Promise<void> {
   const key = keyOf(list);
