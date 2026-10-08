@@ -132,7 +132,7 @@ export function LineupView({ league, byId, result, stored, outdated, onKinds, on
               <li key={`missing-${i}`} className="flex items-center gap-3 py-2">
                 <Badge text={s.slot} />
                 <span className="text-xs text-neutral-400">
-                  {s.missing === 'list' ? `Scan ${slotName(s.slot)} rankings` : `No ranked ${slotName(s.slot)} to start`}
+                  {s.missing === 'list' ? `Scan ${slotName(s.slot)} rankings` : 'No ranked player left'}
                 </span>
               </li>
             ),
