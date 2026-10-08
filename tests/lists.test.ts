@@ -18,6 +18,18 @@ describe('listsForLeague', () => {
     expect(listsForLeague([list('STD'), list('HALF')], 'PPR')).toEqual([list('HALF')]);
   });
 
+  it('drops lists in other formats when one list is in the League format', () => {
+    // Yahoo shows a Half-PPR table with its QB tab open, and a PPR table with its RB tab open.
+    expect(listsForLeague([list('HALF', ['QB']), list('PPR', ['RB'])], 'HALF')).toEqual([list('HALF', ['QB'])]);
+  });
+
+  it('keeps the nearest format of each list when no list is in the League format', () => {
+    expect(listsForLeague([list('PPR', ['RB']), list('STD', ['QB'])], 'HALF')).toEqual([
+      list('PPR', ['RB']),
+      list('STD', ['QB']),
+    ]);
+  });
+
   it('keeps every list whose format the page does not state', () => {
     expect(listsForLeague([list(undefined), list(undefined), list('PPR')], 'PPR')).toEqual([
       list(undefined),
