@@ -18,6 +18,9 @@ export type ScanRequest = {
 /** New colors once the panel has built the Lineup. */
 export type KindsUpdate = { type: 'fq-lens:kinds'; kinds: Record<string, MarkKind> };
 
+/** The page removed the last Scan's marks, so the panel no longer shows what the page shows. */
+export type PageChanged = { type: 'fq-lens:changed' };
+
 export type ScanResult = {
   url: string;
   title: string;

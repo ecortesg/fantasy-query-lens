@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { fakeBrowser } from 'wxt/testing/fake-browser';
 import type { RankedList } from '../lib/page/ranks';
 import type { ScanResult } from '../lib/page/scan';
-import { forgetList, listsFromSource, saveScan, scansItem } from '../lib/scans';
+import { forgetList, listsFromSource, mergeLists, saveScan, scansItem, storedLists, withoutList } from '../lib/scans';
 
 const list = (positions: RankedList['positions'], rank: number): RankedList => ({
   heading: positions.join('/'),
@@ -61,5 +61,19 @@ describe('forgetList', () => {
     const [qb] = await scansItem.getValue();
     await forgetList(qb!);
     expect((await scansItem.getValue()).map((l) => l.heading)).toEqual(['RB']);
+  });
+});
+
+describe('withoutList', () => {
+  beforeEach(() => fakeBrowser.reset());
+
+  it('removes a list of the last Scan from the panel until the next Scan', async () => {
+    const last = result(3, [list(['QB'], 1), list(['RB'], 4)]);
+    await saveScan(last);
+    const qb = storedLists(last)[0]!;
+    await forgetList(qb);
+    // The panel shows the kept lists plus the last Scan's.
+    const shown = mergeLists(await scansItem.getValue(), storedLists(withoutList(last, qb)));
+    expect(shown.map((l) => l.heading)).toEqual(['RB']);
   });
 });

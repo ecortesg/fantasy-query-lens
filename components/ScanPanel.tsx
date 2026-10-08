@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { browser } from '#imports';
 import { refreshRoster, type League } from '@/lib/league';
 import type { MarkKind } from '@/lib/page/highlight';
-import type { KindsUpdate, ScanRequest, ScanResult } from '@/lib/page/scan';
+import type { KindsUpdate, PageChanged, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { availablePlayers } from '@/lib/pickups';
-import { saveScan, scansItem } from '@/lib/scans';
+import { forgetList, saveScan, scansItem, withoutList, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
 import { LineupView } from './LineupView';
 import { RosterSection, SourceCard } from './ui';
@@ -25,8 +25,8 @@ type Props = { league: League; leagues: readonly League[]; byId: ReadonlyMap<str
 export function ScanPanel({ league, leagues, byId }: Props) {
   const stored = useStorageItem(scansItem);
   const [result, setResult] = useState<ScanResult>();
-  /** The tab of `result`, and whether it still shows that page. */
-  const [scanned, setScanned] = useState<{ tabId: number; gone: boolean }>();
+  /** The tab of `result`, whether it still shows that page, and whether the page changed since. */
+  const [scanned, setScanned] = useState<{ tabId: number; gone: boolean; changed?: boolean }>();
   const [activeTab, setActiveTab] = useState<number>();
   const [scanning, setScanning] = useState(false);
   /** The user's last Scan could not read the page. */
@@ -132,7 +132,16 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     if (scanned && !scanned.gone) scan(scanned.tabId, { quiet: true });
   }, [league.id]); // Only a League change triggers this.
 
+  // The scanned page removed our marks, such as on a tab click. It does not scan by itself (ADR-0009).
   const scannedTab = scanned?.tabId;
+  useEffect(() => {
+    const onMessage = (message: PageChanged, sender: { tab?: { id?: number } }) => {
+      if (message?.type === 'fq-lens:changed' && sender.tab?.id === scannedTab) setScanned((s) => s && { ...s, changed: true });
+    };
+    browser.runtime.onMessage.addListener(onMessage);
+    return () => browser.runtime.onMessage.removeListener(onMessage);
+  }, [scannedTab]);
+
   const sendKinds = useCallback(
     (kinds: Record<string, MarkKind>) => {
       kindsRef.current = kinds;
@@ -140,6 +149,11 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     },
     [scannedTab],
   );
+
+  const forget = (list: StoredList) => {
+    forgetList(list);
+    setResult((r) => r && withoutList(r, list));
+  };
 
   /** Resolves true when the user granted access. */
   const allow = async (origins: string[]) => {
@@ -181,13 +195,21 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return (
       <>
         {/* The last Scan stays below: this page was not read. */}
+        {onScannedPage && scanned.changed && !scanning && (
+          <div className="sticky top-0 z-10 -mx-3 -mt-3 mb-3 flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
+            <p className="flex-1">The page changed. Rescan to read what it shows now.</p>
+            <button className="btn shrink-0" onClick={() => scan()}>
+              Rescan
+            </button>
+          </div>
+        )}
         {blocked && (
           <div className="flex items-center gap-3 border-t border-neutral-200 bg-amber-50 px-3 py-2 text-xs text-neutral-700">
             <p className="flex-1">Lens cannot read this page. Click the Lens icon in the toolbar to scan it.</p>
             {allowAll}
           </div>
         )}
-        <LineupView league={league} byId={byId} result={result} stored={stored ?? []} onKinds={sendKinds} action={scanButton}>
+        <LineupView league={league} byId={byId} result={result} stored={stored ?? []} onKinds={sendKinds} onForget={forget} action={scanButton}>
           {allowCard}
         </LineupView>
       </>

@@ -4,4 +4,4 @@ Each Ranked List a Scan finds is kept under its Source (site + Ranker + week + S
 
 ## Why
 
-The sites we read show one position at a time: Yahoo with tabs, Fantasy Footballers with one page per position. One Scan alone can rarely fill a lineup. The week is part of the key, so lists from different weeks never mix, and old lists do no harm. When a page does not say its week, the panel shows the date each list was read. The user can always scan again, and can remove a kept list from another page by hand.
+The sites we read show one position at a time: Yahoo with tabs, Fantasy Footballers with one page per position. One Scan alone can rarely fill a lineup. The week is part of the key, so lists from different weeks never mix, and old lists do no harm. When a page does not say its week, the panel shows the date each list was read. The user can always scan again, and can remove any list by hand. A removed list comes back only when the user scans its page again.
