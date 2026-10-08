@@ -14,6 +14,8 @@ type Props = {
   byId: ReadonlyMap<string, Player>;
   result: ScanResult;
   stored: readonly StoredList[];
+  /** The page removed this Scan's marks since, such as on a tab click. */
+  changed: boolean;
   /** Called with the colors the page's marks should have. */
   onKinds: (kinds: Record<string, MarkKind>) => void;
   /** Removes a list from the Lineup until the next Scan of its page. */
@@ -24,7 +26,7 @@ type Props = {
   children?: React.ReactNode;
 };
 
-export function LineupView({ league, byId, result, stored, onKinds, onForget, action, children }: Props) {
+export function LineupView({ league, byId, result, stored, changed, onKinds, onForget, action, children }: Props) {
   // This page's lists plus those kept from other pages of the same Source (ADR-0004).
   // This page's are merged here too, so they count before storage catches up.
   const merged = mergeLists(stored, storedLists(result));
@@ -61,12 +63,16 @@ export function LineupView({ league, byId, result, stored, onKinds, onForget, ac
   const onPage = new Set(result.found);
   const found = `${league.roster.filter((e) => onPage.has(e.playerId)).length} of ${league.roster.length} on page`;
   const title = sourceTitle(result.source);
-  const scannedAt = `scanned ${scanTime(result.scannedAt)}`;
+  const scannedAt = changed ? (
+    <span className="text-amber-700">page changed since {scanTime(result.scannedAt)}</span>
+  ) : (
+    `scanned ${scanTime(result.scannedAt)}`
+  );
 
   if (!ranker)
     return (
       <>
-        <SourceCard title={title} line={`Ranks none of your players · ${found} · ${scannedAt}`} action={action} />
+        <SourceCard title={title} line={<>Ranks none of your players · {found} · {scannedAt}</>} action={action} />
         <div className="space-y-6 px-3 py-3">
           <RosterSection league={league} byId={byId} found={onPage} />
           {children}
