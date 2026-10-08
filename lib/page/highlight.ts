@@ -19,6 +19,7 @@ export const markStyles = {
 const STYLE_ID = 'fq-lens-style';
 // Dark text on a colored mark, so light text on a dark page stays readable. `!important` beats a site's `a *` rules.
 // No padding, as some sites pad `mark`, so the page keeps its layout.
+// New marks fade in, so a Scan the user asked for shows on the page too.
 const CSS = `
 mark[data-fq-lens] { color: inherit; padding: 0; border-radius: 2px; box-shadow: 0 0 0 1px rgb(0 0 0 / 0.15); }
 mark[data-fq-lens="starter"], mark[data-fq-lens="bench"] { color: #171717 !important; }
@@ -27,6 +28,8 @@ mark[data-fq-lens="bench"] { background: ${markStyles.bench.background}; }
 mark[data-fq-lens="pickup"] { background: none; box-shadow: none; outline: ${markStyles.pickup.outline}; }
 mark[data-fq-lens="other"] { background: none; box-shadow: none; }
 mark[data-fq-lens-piece] { border-radius: 0; box-shadow: none; }
+@keyframes fq-lens-in { from { background-color: transparent; outline-color: transparent; box-shadow: none; } }
+@media (prefers-reduced-motion: no-preference) { mark[data-fq-lens] { animation: fq-lens-in 0.25s ease-out; } }
 `;
 
 /** Wraps each part of each hit in a mark. Returns the marks in page order. */
