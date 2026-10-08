@@ -1,11 +1,11 @@
 import { browser, defineContentScript } from '#imports';
-import { clearHighlights, recolor } from '@/lib/page/highlight';
+import { clearHighlights, recolor, type MarkKind } from '@/lib/page/highlight';
 import { scanPage, type ClearMarks, type KindsUpdate, type PageChanged, type ScanRequest } from '@/lib/page/scan';
-import { watchMarks } from '@/lib/page/watch';
+import { keepMarked } from '@/lib/page/watch';
 
 /**
- * Injected by the side panel. Scans only when the panel asks (ADR-0009), then
- * tells the panel once if the page removes the Scan's marks.
+ * Injected by the side panel. Scans only when the panel asks (ADR-0009). When
+ * the page removes the Scan's marks, marks the players again and tells the panel.
  */
 export default defineContentScript({
   registration: 'runtime',
@@ -15,9 +15,11 @@ export default defineContentScript({
     page.fqLensReady = true;
 
     let stopWatching = () => {};
+    // The latest colors from the panel, for marks made again.
+    let kinds: Record<string, MarkKind> = {};
     const tellChanged = () => {
       // A reload or update of the extension leaves this script on the page, and sendMessage then throws.
-      if (!browser.runtime?.id) return;
+      if (!browser.runtime?.id) return stopWatching();
       const changed: PageChanged = { type: 'fq-lens:changed' };
       browser.runtime.sendMessage(changed).catch(() => {});
     };
@@ -26,10 +28,12 @@ export default defineContentScript({
       if (message?.type === 'fq-lens:scan') {
         stopWatching();
         const result = scanPage(document, message);
-        stopWatching = watchMarks(document.body, tellChanged);
+        kinds = message.kinds;
+        stopWatching = keepMarked(document.body, message.players, (id) => kinds[id], tellChanged);
         sendResponse(result);
       } else if (message?.type === 'fq-lens:kinds') {
-        recolor(document.body, (id) => message.kinds[id]);
+        kinds = message.kinds;
+        recolor(document.body, (id) => kinds[id]);
       } else if (message?.type === 'fq-lens:clear') {
         stopWatching();
         clearHighlights(document.body);
