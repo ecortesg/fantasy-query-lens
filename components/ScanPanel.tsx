@@ -5,7 +5,7 @@ import type { MarkKind } from '@/lib/page/highlight';
 import type { ClearMarks, KindsUpdate, PageView, ScanRequest, ScanResult } from '@/lib/page/scan';
 import { siteOf, type PageSource } from '@/lib/page/source';
 import { availablePlayers } from '@/lib/pickups';
-import { forgetList, isOutdated, keyOf, listsFromSource, saveScan, scansItem, storedLists, type StoredList } from '@/lib/scans';
+import { forgetSite, listsFromSource, saveScan, scansItem, type StoredList } from '@/lib/scans';
 import type { Player } from '@/lib/players';
 import { LineupView } from './LineupView';
 import { RosterSection, SourceCard } from './ui';
@@ -24,9 +24,9 @@ type Read = { tabId: number; result: ScanResult };
 
 /**
  * The panel follows the active tab. On a site the user scanned, it reads each
- * page the tab shows, marks the players, and shows the Lineup kept for the
- * page's site and week; only a Scan keeps lists. Elsewhere, such as on Sleeper,
- * the last Lineup stays (ADR-0010).
+ * page and tab the user opens like a Scan: it marks the players and keeps the
+ * lists, so the Lineup for the page's site and week grows and stays current.
+ * Elsewhere, such as on Sleeper, the last Lineup stays (ADR-0010).
  */
 export function ScanPanel({ league, leagues, byId }: Props) {
   const stored = useStorageItem(scansItem);
@@ -77,6 +77,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     };
   }, [byId]);
 
+  const keep = (result: ScanResult) => saveScan(result).catch((e) => console.error('Lens: could not keep the lists', e));
+
   const scan = useCallback(
     async (target?: number, { quiet = false } = {}) => {
       const id = target ?? (await browser.tabs.query({ active: true, currentWindow: true }))[0]?.id;
@@ -90,7 +92,7 @@ export function ScanPanel({ league, leagues, byId }: Props) {
       }
       try {
         const next = await scanTab(id, await requestFor());
-        if (next.kind === 'done') await saveScan(next.result).catch((e) => console.error('Lens: could not keep the lists', e));
+        if (next.kind === 'done') await keep(next.result);
         if (run !== latestScan.current) return;
         if (next.kind === 'no-access') {
           if (!quiet) setBlocked(true);
@@ -111,14 +113,16 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     [requestFor],
   );
 
-  /** Reads a page of a site the user scanned. Keeps no list. With no access, Chrome lets no script in. */
+  /** Scans a page of a site the user scanned, with no click. With no access, Chrome lets no script in. */
   const look = useCallback(
     async (tabId: number) => {
       const tab = await browser.tabs.get(tabId).catch(() => undefined);
       const site = siteOf(tab?.url);
       if (!site || !storedRef.current?.some((l) => l.site === site)) return;
       const next = await scanTab(tabId, await requestFor());
-      if (next.kind === 'done' && tabId === activeTabRef.current) setRead({ tabId, result: next.result });
+      if (next.kind !== 'done') return;
+      await keep(next.result);
+      if (tabId === activeTabRef.current) setRead({ tabId, result: next.result });
     },
     [requestFor],
   );
@@ -163,7 +167,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
   useEffect(() => {
     const onMessage = (message: PageView, sender: { tab?: { id?: number } }) => {
       const id = sender.tab?.id;
-      if (message?.type === 'fq-lens:view' && id !== undefined && id === activeTabRef.current) setRead({ tabId: id, result: message.result });
+      if (message?.type !== 'fq-lens:view' || id === undefined || id !== activeTabRef.current) return;
+      keep(message.result).then(() => setRead({ tabId: id, result: message.result }));
     };
     browser.runtime.onMessage.addListener(onMessage);
     return () => browser.runtime.onMessage.removeListener(onMessage);
@@ -196,11 +201,10 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     [],
   );
 
-  const forget = (list: StoredList) => {
-    forgetList(list);
-    if (listsFromSource(kept, list.site, list.week).some((l) => keyOf(l) !== keyOf(list))) return;
-    // The Source's last list: its marks go, and the panel starts again.
-    if (read && read.result.source.site === list.site && read.result.source.week === list.week) {
+  // The site's lists and marks go, and Lens waits for a Scan there again.
+  const forget = (site: string) => {
+    forgetSite(site);
+    if (read && read.result.source.site === site) {
       const clear: ClearMarks = { type: 'fq-lens:clear' };
       browser.tabs.sendMessage(read.tabId, clear).catch(() => {});
       setRead(undefined);
@@ -216,13 +220,12 @@ export function ScanPanel({ league, leagues, byId }: Props) {
     return granted;
   };
 
-  // "Rescan" when every list on the page is kept, "Scan page" when the page has any to add.
-  const keys = new Set(kept.map(keyOf));
-  const pageKept = onPage && read.result.lists.length > 0 && storedLists(read.result).every((l) => keys.has(keyOf(l)));
+  // "Rescan" on a site the user scanned, "Scan page" elsewhere.
+  const siteScanned = onPage && kept.some((l) => l.site === read.result.source.site);
   const scanButton = (
     // The spinner covers the label, so the button keeps its width and the title does not wrap.
     <button className="btn relative shrink-0" disabled={scanning} aria-busy={scanning} onClick={() => scan()}>
-      <span className={scanning ? 'invisible' : undefined}>{pageKept ? 'Rescan' : 'Scan page'}</span>
+      <span className={scanning ? 'invisible' : undefined}>{siteScanned ? 'Rescan' : 'Scan page'}</span>
       {scanning && (
         <span className="absolute inset-0 flex items-center justify-center">
           <Spinner />
@@ -263,9 +266,8 @@ export function ScanPanel({ league, leagues, byId }: Props) {
           source={source}
           page={onPage ? read.result : undefined}
           stored={kept}
-          outdated={onPage && isOutdated(read.result, kept)}
           onKinds={sendKinds}
-          onForget={forget}
+          onForget={() => forget(source.site)}
           action={scanButton}
         >
           {allowCard}

@@ -1,6 +1,6 @@
 # A page change waits for a Scan, and the League's format wins
 
-A Scan runs only when the user asks for one (ADR-0007). A change to the scanned page, such as a click on Yahoo's RB tab, no longer changes the Lineup: only a Scan the user asks for adds or replaces lists. The marks follow the page (ADR-0010). When the page shows a kept list that now ranks a player differently, the Source card says "Ranks out of date" beside its Rescan button. A tab whose list was never scanned says nothing, as its Slot already shows "Scan … rankings". Changes that leave the marks, such as ads, do nothing. When any list the Lineup could use is in the League's Scoring Format, the lists in other formats are dropped. A position that only another format ranks shows "Scan … rankings", and the user opens that tab and rescans.
+A change to the page that the user did not make, such as an ad, a video player or late content, does not scan it. Only a page or tab the user opens does, on a site they scanned (ADR-0010). Changes that leave the marks do nothing. When any list the Lineup could use is in the League's Scoring Format, the lists in other formats are dropped. A position that only another format ranks shows "Open … rankings", and the user opens that tab.
 
 ## Why
 

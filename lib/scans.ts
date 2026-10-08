@@ -35,30 +35,14 @@ export function saveScan(result: ScanResult): Promise<void> {
   return queue;
 }
 
-/** Removes a kept list the user no longer wants in the lineup. */
-export function forgetList(list: StoredList): Promise<void> {
-  const key = keyOf(list);
+/** Removes every list kept from a site, so Lens stops reading it until the user scans it again. */
+export function forgetSite(site: string): Promise<void> {
   queue = queue
     .catch(() => {})
-    .then(async () => scansItem.setValue((await scansItem.getValue()).filter((l) => keyOf(l) !== key)));
+    .then(async () => scansItem.setValue((await scansItem.getValue()).filter((l) => l.site !== site)));
   return queue;
 }
 
 /** The kept lists one page's lineup merges: the same site and week. */
 export const listsFromSource = (all: readonly StoredList[], site: string, week: number | undefined) =>
   all.filter((l) => l.site === site && l.week === week);
-
-/**
- * Whether the page ranks a player otherwise than the kept list it shows. A
- * list that is not kept, such as an unscanned tab, does not count.
- */
-export function isOutdated(view: ScanResult, kept: readonly StoredList[]): boolean {
-  const byKey = new Map(kept.map((l) => [keyOf(l), l]));
-  return storedLists(view).some((list) =>
-    list.rankers.some((ranker) => {
-      const old = byKey.get(keyOf(list))?.rankers.find((r) => r.name === ranker.name);
-      // Only players both read: the Scan's players change with the Leagues.
-      return old && Object.entries(ranker.ranks).some(([id, rank]) => id in old.ranks && old.ranks[id] !== rank);
-    }),
-  );
-}
