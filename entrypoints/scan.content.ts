@@ -1,11 +1,12 @@
 import { browser, defineContentScript } from '#imports';
 import { clearHighlights, recolor } from '@/lib/page/highlight';
-import { scanPage, type ClearMarks, type KindsUpdate, type PageChanged, type ScanRequest } from '@/lib/page/scan';
-import { watchMarks } from '@/lib/page/watch';
+import { scanPage, type ClearMarks, type KindsUpdate, type PageView, type ScanRequest } from '@/lib/page/scan';
+import { keepMarked } from '@/lib/page/watch';
 
 /**
- * Injected by the side panel. Scans only when the panel asks (ADR-0009), then
- * tells the panel once if the page removes the Scan's marks.
+ * Injected by the side panel. Scans only when the panel asks (ADR-0009). When
+ * the page draws new content over the marks, marks the players again and sends
+ * the panel what the page now ranks.
  */
 export default defineContentScript({
   registration: 'runtime',
@@ -15,23 +16,31 @@ export default defineContentScript({
     page.fqLensReady = true;
 
     let stopWatching = () => {};
-    const tellChanged = () => {
+    // The last request, with the panel's latest colors.
+    let request: ScanRequest | undefined;
+    const remark = (gone: boolean) => {
       // A reload or update of the extension leaves this script on the page, and sendMessage then throws.
-      if (!browser.runtime?.id) return;
-      const changed: PageChanged = { type: 'fq-lens:changed' };
-      browser.runtime.sendMessage(changed).catch(() => {});
+      if (!request || !browser.runtime?.id) return stopWatching();
+      const result = scanPage(document, request);
+      // A view with none of the players tells nothing new after the first.
+      if (!gone && !result.found.length) return;
+      const view: PageView = { type: 'fq-lens:view', result };
+      browser.runtime.sendMessage(view).catch(() => {});
     };
 
     browser.runtime.onMessage.addListener((message: ScanRequest | KindsUpdate | ClearMarks, _sender, sendResponse) => {
       if (message?.type === 'fq-lens:scan') {
         stopWatching();
+        request = message;
         const result = scanPage(document, message);
-        stopWatching = watchMarks(document.body, tellChanged);
+        stopWatching = keepMarked(document.body, remark);
         sendResponse(result);
       } else if (message?.type === 'fq-lens:kinds') {
+        if (request) request = { ...request, kinds: message.kinds };
         recolor(document.body, (id) => message.kinds[id]);
       } else if (message?.type === 'fq-lens:clear') {
         stopWatching();
+        request = undefined;
         clearHighlights(document.body);
       }
     });

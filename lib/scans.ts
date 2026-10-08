@@ -59,3 +59,20 @@ export function forgetList(list: StoredList): Promise<void> {
 /** The kept lists one page's lineup merges: the same site and week. */
 export const listsFromSource = (all: readonly StoredList[], site: string, week: number | undefined) =>
   all.filter((l) => l.site === site && l.week === week);
+
+/**
+ * Whether the page now shows other ranks than the kept lists: a kept list
+ * whose ranks differ, or ranks of another Source. A list that is not kept, such
+ * as an unscanned tab, does not count: its Slot already asks for a Scan.
+ */
+export function isOutdated(view: ScanResult, scan: ScanResult, kept: readonly StoredList[]): boolean {
+  if (view.source.site !== scan.source.site || view.source.week !== scan.source.week) return view.lists.length > 0;
+  const byKey = new Map(kept.map((l) => [keyOf(l), l]));
+  return storedLists(view).some((list) =>
+    list.rankers.some((ranker) => {
+      const old = byKey.get(keyOf(list))?.rankers.find((r) => r.name === ranker.name);
+      // Only players both read: the Scan's players change with the Leagues.
+      return old && Object.entries(ranker.ranks).some(([id, rank]) => id in old.ranks && old.ranks[id] !== rank);
+    }),
+  );
+}

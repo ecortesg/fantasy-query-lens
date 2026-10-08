@@ -1,40 +1,50 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { findPlayers } from '../lib/page/find';
-import { highlight } from '../lib/page/highlight';
-import { watchMarks } from '../lib/page/watch';
+import { scanPage } from '../lib/page/scan';
+import { keepMarked } from '../lib/page/watch';
 import { page, player } from './helpers';
 
 const gibbs = player('9221', 'Jahmyr Gibbs', ['RB'], 'DET');
 const settle = () => new Promise((r) => setTimeout(r, 20));
-
-function scanned() {
-  const doc = page('<div id="tab"><table><tr><td>Jahmyr Gibbs</td></tr></table></div><div id="ad"></div>');
-  highlight(findPlayers(doc.body, [gibbs]), () => 'starter');
-  return doc;
-}
+const marked = (doc: Document) => [...doc.querySelectorAll('mark')].map((m) => m.textContent);
 
 let stop = () => {};
 afterEach(() => stop());
 
-describe('watchMarks', () => {
-  it('tells once when the page removes a mark, as a tab click does', async () => {
-    const doc = scanned();
-    const onGone = vi.fn();
-    stop = watchMarks(doc.body, onGone, 0);
-    doc.getElementById('tab')!.innerHTML = '<table><tr><td>Bijan Robinson</td></tr></table>';
+/** A scanned page whose watcher scans again, as the content script does. */
+function watched() {
+  const doc = page('<div id="tab"><table><tr><td>Jahmyr Gibbs</td></tr></table></div><div id="ad"></div>');
+  const request = { type: 'fq-lens:scan' as const, players: [gibbs], kinds: {} };
+  scanPage(doc, request);
+  const remark = vi.fn(() => void scanPage(doc, request));
+  stop = keepMarked(doc.body, remark, 0);
+  const showTab = (html: string) => (doc.getElementById('tab')!.innerHTML = html);
+  return { doc, remark, showTab };
+}
+
+describe('keepMarked', () => {
+  it('marks again when a tab click draws a new table', async () => {
+    const { doc, remark, showTab } = watched();
+    showTab('<table><tr><td>Bijan Robinson</td><td>Jahmyr Gibbs</td></tr></table>');
     await settle();
-    doc.getElementById('tab')!.innerHTML = '';
+    expect(remark.mock.calls).toEqual([[true]]);
+    expect(marked(doc)).toEqual(['Jahmyr Gibbs']);
+  });
+
+  it('marks a player again when his tab comes back after a tab without him', async () => {
+    const { doc, remark, showTab } = watched();
+    showTab('<table><tr><td>Josh Allen</td></tr></table>');
     await settle();
-    expect(onGone).toHaveBeenCalledTimes(1);
+    showTab('<table><tr><td>Jahmyr Gibbs</td></tr></table>');
+    await settle();
+    expect(remark.mock.calls).toEqual([[true], [false]]);
+    expect(marked(doc)).toEqual(['Jahmyr Gibbs']);
   });
 
   it('stays quiet when other parts of the page change', async () => {
-    const doc = scanned();
-    const onGone = vi.fn();
-    stop = watchMarks(doc.body, onGone, 0);
+    const { doc, remark } = watched();
     doc.getElementById('ad')!.innerHTML = '<iframe></iframe>';
     await settle();
-    expect(onGone).not.toHaveBeenCalled();
+    expect(remark).not.toHaveBeenCalled();
   });
 });

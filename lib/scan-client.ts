@@ -7,6 +7,11 @@ export const scanRequestItem = storage.defineItem<{ tabId: number; at: number } 
   { fallback: null },
 );
 
+/** The panel's last Scan and its tab, so the panel shows it again when it opens. */
+export const lastScanItem = storage.defineItem<{ tabId: number; result: ScanResult } | null>('session:lastScan', {
+  fallback: null,
+});
+
 export type ScanOutcome = { kind: 'done'; result: ScanResult } | { kind: 'no-access' };
 
 /** Injects the scan script (a no-op when it is already there) and asks it to scan. */
