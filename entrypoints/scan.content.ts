@@ -4,23 +4,24 @@ import { scanPage, type ClearMarks, type KindsUpdate, type PageView, type ScanRe
 import { keepMarked } from '@/lib/page/watch';
 
 /**
- * Injected by the side panel. Scans only when the panel asks (ADR-0009). When
- * the page draws new content over the marks, marks the players again and sends
- * the panel what the page now ranks.
+ * Injected by the side panel to read the page. When the page draws new content
+ * over the marks, marks the players again and sends the panel what the page
+ * now shows (ADR-0010).
  */
 export default defineContentScript({
   registration: 'runtime',
   main() {
-    const page = window as Window & { fqLensReady?: true };
-    if (page.fqLensReady) return;
-    page.fqLensReady = true;
+    // A reload or update of the extension leaves the old script on the page, cut off from the panel.
+    const alive = () => !!browser.runtime?.id;
+    const page = window as Window & { fqLens?: { alive: () => boolean } };
+    if (page.fqLens?.alive()) return;
+    page.fqLens = { alive };
 
     let stopWatching = () => {};
     // The last request, with the panel's latest colors.
     let request: ScanRequest | undefined;
     const remark = (gone: boolean) => {
-      // A reload or update of the extension leaves this script on the page, and sendMessage then throws.
-      if (!request || !browser.runtime?.id) return stopWatching();
+      if (!request || !alive()) return stopWatching();
       const result = scanPage(document, request);
       // A view with none of the players tells nothing new after the first.
       if (!gone && !result.found.length) return;

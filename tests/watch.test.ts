@@ -12,12 +12,12 @@ let stop = () => {};
 afterEach(() => stop());
 
 /** A scanned page whose watcher scans again, as the content script does. */
-function watched() {
-  const doc = page('<div id="tab"><table><tr><td>Jahmyr Gibbs</td></tr></table></div><div id="ad"></div>');
+function watched(tab = '<table><tr><td>Jahmyr Gibbs</td></tr></table>') {
+  const doc = page(`<div id="tab">${tab}</div><div id="ad"></div>`);
   const request = { type: 'fq-lens:scan' as const, players: [gibbs], kinds: {} };
   scanPage(doc, request);
   const remark = vi.fn(() => void scanPage(doc, request));
-  stop = keepMarked(doc.body, remark, 0);
+  stop = keepMarked(doc.body, remark, { delayMs: 0 });
   const showTab = (html: string) => (doc.getElementById('tab')!.innerHTML = html);
   return { doc, remark, showTab };
 }
@@ -38,6 +38,14 @@ describe('keepMarked', () => {
     showTab('<table><tr><td>Jahmyr Gibbs</td></tr></table>');
     await settle();
     expect(remark.mock.calls).toEqual([[true], [false]]);
+    expect(marked(doc)).toEqual(['Jahmyr Gibbs']);
+  });
+
+  it('marks the players when the page draws its table after it loads', async () => {
+    const { doc, remark, showTab } = watched('');
+    showTab('<table><tr><td>Jahmyr Gibbs</td></tr></table>');
+    await settle();
+    expect(remark.mock.calls).toEqual([[false]]);
     expect(marked(doc)).toEqual(['Jahmyr Gibbs']);
   });
 

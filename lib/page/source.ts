@@ -13,8 +13,11 @@ export type PageSource = {
   format?: ScoringFormat;
 };
 
+/** A URL's host without "www.": the `site` of its pages' Source. */
+export const siteOf = (url: string | undefined) => (url ? new URL(url).hostname.replace(/^www\./, '') : undefined);
+
 export function readSource(doc: Document): PageSource {
-  const site = doc.location.hostname.replace(/^www\./, '');
+  const site = siteOf(doc.location.href)!;
   const meta = (selector: string) => doc.querySelector<HTMLMetaElement>(selector)?.content.trim() || undefined;
   const headline = doc.querySelector('h1')?.textContent ?? '';
   const week = /\bweek\s*(\d{1,2})\b/i.exec(`${doc.title} ${headline}`)?.[1];

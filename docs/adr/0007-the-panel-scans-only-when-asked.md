@@ -1,6 +1,6 @@
 # The panel scans only when asked
 
-A Scan runs on a toolbar click, on the panel's Scan button, and on a League change (for the scanned page, if it is still open). A new tab or page does not scan: the panel keeps the last Scan until the user scans, also when they close the panel and open it again. In another tab its button says "Scan page" (not "Rescan"). When the user removes the last list of the Scan's Source, the Scan and its marks go, and the panel says "No scan yet". A change to the scanned page does not scan it either (ADR-0009).
+A Scan runs on a toolbar click, on the panel's Scan button, and on a League change (for the page in front, if the panel read it). Only a Scan keeps lists. A new tab or page does not scan, and a change to the page does not either (ADR-0009). On a site the user scanned and allowed, the panel reads each page to mark the players and show its Lineup, but keeps no list (ADR-0010). Elsewhere it keeps the last Lineup, and its button says "Scan page" (not "Rescan").
 
 ## Why
 
