@@ -26,10 +26,10 @@ Text for the Chrome Web Store and Edge Add-ons forms. Keep it in sync with the e
 > • Highlights your starters and bench on the page
 > • Suggests a lineup that fills your League's slots, including flex and IDP
 > • Finds Pickups: available players who would start for you or upgrade your bench
-> • Merges position pages, so a site that shows one position at a time still gives a full lineup
+> • Collects each position page or tab you open on a site you scanned, so a site that shows one position at a time still gives a full lineup
 > • Works on the rankings sites you already read
 >
-> No account, no tracking. The extension reads a page only when you ask it to.
+> No account, no tracking. Lens reads only the sites you scan, and asks Chrome for access to each one.
 >
 > Open source: https://github.com/ecortesg/fantasy-query-lens
 
@@ -37,7 +37,7 @@ Text for the Chrome Web Store and Edge Add-ons forms. Keep it in sync with the e
 
 **Language:** English (United States)
 
-**Homepage URL:** https://github.com/ecortesg/fantasy-query-lens
+**Homepage URL:** https://www.fantasyquery.com/lens
 
 **Support URL:** https://github.com/ecortesg/fantasy-query-lens/issues
 
