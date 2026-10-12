@@ -61,7 +61,8 @@ Screenshots and tiles must be JPEG or PNG with no alpha. A macOS screenshot has 
 - `sidePanel`: shows the extension's interface in Chrome's side panel, beside the rankings page. WXT adds it to the manifest.
 - `scripting`: runs the scan and the highlight in that tab.
 - `storage`: keeps the user's Leagues, their Scans and the player list on the device.
-- Optional host permissions (`https://*/*`, `http://*/*`): asked only when the user clicks Scan in the side panel, for the one site they are on, or for all sites if the user chooses "Allow all sites". On a site the user scanned, Lens reads the rankings pages and tabs that the user opens there, also after a reload, to highlight the user's players and keep the ranks for the lineup. Rankings pages are on many different sites, so no fixed list of hosts works.
+
+The form has a field only for the permissions above. The optional host permissions (`https://*/*`, `http://*/*`) have none: Chrome asks the user when they click Scan, for the one site they are on (or for all sites with "Allow all sites"). The description and the privacy policy say what Lens does with them: on a site the user scanned, it reads the rankings pages and tabs they open there, also after a reload.
 
 **Remote code:** No. All code is in the package.
 
