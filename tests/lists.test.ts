@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listLabel, listsForLeague, sourceTitle } from '../lib/lists';
+import { listLabel, listsForLeague, rankerToShow, sourceTitle } from '../lib/lists';
 import type { RankedList } from '../lib/page/ranks';
 
 const list = (format: RankedList['format'], positions: RankedList['positions'] = ['QB']): RankedList => ({
@@ -41,6 +41,41 @@ describe('listsForLeague', () => {
   it('keeps different lists apart', () => {
     const lists = [list('HALF', ['QB']), list('HALF', ['RB', 'WR', 'TE'])];
     expect(listsForLeague(lists, 'PPR')).toEqual(lists);
+  });
+});
+
+describe('rankerToShow', () => {
+  const kept = (name: string, scannedAt: number, positions: RankedList['positions'] = ['QB']) => ({
+    heading: '',
+    positions,
+    rankers: [{ name, ranks: {} }],
+    scannedAt,
+  });
+  // Two analysts' pages of one site and week, Expert 1 scanned first.
+  const lists = [kept('Expert 1', 1), kept('Expert 1', 2, ['RB']), kept('Expert 2', 3)];
+
+  it("shows the page's ranker on a page Lens reads", () => {
+    expect(rankerToShow(lists, undefined, [kept('Expert 1', 2)])).toBe('Expert 1');
+  });
+
+  it('keeps the ranker the user last saw on a page Lens does not read', () => {
+    expect(rankerToShow(lists, undefined, undefined)).toBe('Expert 2');
+  });
+
+  it("follows a page scanned again: its lists are now the newest", () => {
+    expect(rankerToShow([...lists, kept('Expert 1', 4)], undefined, undefined)).toBe('Expert 1');
+  });
+
+  it("keeps the user's pick over the page and the newest list", () => {
+    expect(rankerToShow(lists, 'Expert 1', [kept('Expert 2', 3)])).toBe('Expert 1');
+  });
+
+  it('ignores a pick or a page ranker the kept lists do not have', () => {
+    expect(rankerToShow(lists, 'Expert 3', [kept('Expert 4', 5)])).toBe('Expert 2');
+  });
+
+  it('has no ranker with no lists', () => {
+    expect(rankerToShow([], undefined, undefined)).toBeUndefined();
   });
 });
 
