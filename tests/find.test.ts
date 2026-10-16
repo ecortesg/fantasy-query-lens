@@ -53,9 +53,33 @@ describe('findPlayers', () => {
     expect(findPlayers(doc.body, [lb, wr]).map((h) => h.player.id)).toEqual(['wr', 'lb']);
   });
 
+  it("reads a first initial only in a row that names the player's team", () => {
+    const allen = player('qb', 'Josh Allen', ['QB'], 'BUF');
+    const mahomes = player('kc', 'Patrick Mahomes', ['QB'], 'KC');
+    const doc = page(`<table>
+      <tr><td>J. Allen</td><td>BUF</td></tr>
+      <tr><td>P. Mahomes II</td><td>KC</td></tr>
+      <tr><td>J. Allen</td><td>MIA</td></tr>
+      <tr><td>J. Allen</td><td>MIA</td><td>@ BUF</td></tr>
+      <tr><td>J. Allen</td><td>MIA</td><td>vs. BUF</td></tr>
+      <tr><td>J. Allen</td></tr>
+    </table><p>J. Allen threw twice.</p>`);
+    expect(findPlayers(doc.body, [allen, mahomes]).map(text)).toEqual(['J. Allen', 'P. Mahomes II']);
+  });
+
+  it("gives a first initial to the namesake on the row's team", () => {
+    const josh = player('josh', 'Josh Allen', ['QB'], 'BUF');
+    const jaylen = player('jaylen', 'Jaylen Allen', ['WR'], 'MIA');
+    const doc = page(`<table>
+      <tr><td>J. Allen</td><td>MIA</td></tr>
+      <tr><td>J. Allen</td><td>BUF</td></tr>
+    </table>`);
+    expect(findPlayers(doc.body, [josh, jaylen]).map((h) => h.player.id)).toEqual(['jaylen', 'josh']);
+  });
+
   it('finds players past the first hundred', () => {
-    const many = Array.from({ length: 250 }, (_, i) => player(`p${i}`, `Player ${'x'.repeat(i + 1)}`, ['WR'], 'KC'));
-    const doc = page(`<p>Player ${'x'.repeat(150)} and Player ${'x'.repeat(250)}</p>`);
+    const many = Array.from({ length: 250 }, (_, i) => player(`p${i}`, `Player x${i}`, ['WR'], 'KC'));
+    const doc = page('<p>Player x149 and Player x249</p>');
     expect(findPlayers(doc.body, many).map((h) => h.player.id)).toEqual(['p149', 'p249']);
   });
 

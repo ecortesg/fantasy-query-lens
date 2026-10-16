@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { slotName, type League } from '@/lib/league';
 import { buildLineup, type RankSet, type RosterPlayer } from '@/lib/lineup';
-import { listLabel, listsForLeague, rankerIn, rankerNames, rankerToShow, rankLabel, sourceTitle } from '@/lib/lists';
+import { listLabel, listsForLeague, rankerIn, rankerNames, rankerToShow, rankLabel, sourceTitle, withFullRankerNames } from '@/lib/lists';
 import type { MarkKind } from '@/lib/page/highlight';
 import type { ScanResult } from '@/lib/page/scan';
 import type { PageSource } from '@/lib/page/source';
@@ -27,11 +27,11 @@ type Props = {
 
 export function LineupView({ league, byId, source, page, stored, onKinds, onForget, action }: Props) {
   // The lists kept from every page of this Source (ADR-0004).
-  const lists = listsForLeague(listsFromSource(stored, source.site, source.week), league.scoring);
+  const lists = withFullRankerNames(listsForLeague(listsFromSource(stored, source.site, source.week), league.scoring));
   const names = rankerNames(lists);
   const [chosen, setChosen] = useState<string>();
   const [showUpgrades, setShowUpgrades] = useState(false);
-  const ranker = rankerToShow(lists, chosen, page && listsForLeague(page.lists, league.scoring));
+  const ranker = rankerToShow(lists, chosen, page && withFullRankerNames(listsForLeague(page.lists, league.scoring), lists));
 
   const used = lists.filter((l) => !ranker || l.rankers.some((r) => r.name === ranker));
   const roster: RosterPlayer[] = league.roster.flatMap((e) => {

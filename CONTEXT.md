@@ -28,7 +28,7 @@ Players in a ranker's order with their rank numbers, covering one or more positi
 Who ranked a Ranked List, and for what: site + Ranker + week + Scoring Format. The panel titles it by site and week ("Yahoo Sports · Week 3"), with the Ranker as a menu below. Scans with the same Source merge into one set of lists (ADR-0004).
 
 **Ranker**:
-The person or column a list's ranks come from. A table with several ranker columns (Consensus, Andy, Jason, Mike) reads Consensus by default and lets the user pick another.
+The person or column a list's ranks come from. A table with several ranker columns (Consensus, Andy, Jason, Mike) reads Consensus by default and lets the user pick another. In one Source, a one-word Ranker is the only full-name Ranker with that last name: "Winks" is "Hayden Winks".
 _Avoid_: expert, analyst (except when quoting a site)
 
 **Lineup**:
