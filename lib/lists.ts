@@ -42,6 +42,23 @@ export function rankerToShow(
   return [chosen, pageDefault, newest?.rankers[0]?.name].find((n) => n && names.includes(n));
 }
 
+/**
+ * The lists, with each one-word Ranker that is the last name of exactly one
+ * full-name Ranker of `source` under that full name: a table that heads a
+ * column "Winks" adds to the lists of "Hayden Winks". Two full names with that
+ * last name stay apart.
+ */
+export function withFullRankerNames<T extends RankedList>(lists: readonly T[], source: readonly RankedList[] = lists): T[] {
+  const names = rankerNames(source);
+  const lastName = (n: string) => n.split(/\s+/).at(-1)!.toLowerCase();
+  const full = (short: string) => {
+    if (/\s/.test(short)) return short;
+    const matches = names.filter((n) => /\s/.test(n) && lastName(n) === short.toLowerCase());
+    return matches.length === 1 ? matches[0]! : short;
+  };
+  return lists.map((l) => ({ ...l, rankers: l.rankers.map((r) => ({ ...r, name: full(r.name) })) }));
+}
+
 /** The chosen ranker's column in a list, or the list's default. */
 export const rankerIn = (list: RankedList, name: string | undefined): Ranker =>
   list.rankers.find((r) => r.name === name) ?? list.rankers[0]!;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { listLabel, listsForLeague, rankerToShow, sourceTitle } from '../lib/lists';
+import { listLabel, listsForLeague, rankerToShow, sourceTitle, withFullRankerNames } from '../lib/lists';
 import type { RankedList } from '../lib/page/ranks';
 
 const list = (format: RankedList['format'], positions: RankedList['positions'] = ['QB']): RankedList => ({
@@ -76,6 +76,30 @@ describe('rankerToShow', () => {
 
   it('has no ranker with no lists', () => {
     expect(rankerToShow([], undefined, undefined)).toBeUndefined();
+  });
+});
+
+describe('withFullRankerNames', () => {
+  const ranked = (...names: string[]): RankedList => ({ heading: '', positions: ['QB'], rankers: names.map((name) => ({ name, ranks: {} })) });
+  const names = (lists: RankedList[]) => lists.map((l) => l.rankers.map((r) => r.name));
+
+  it("gives a one-word Ranker the full name of the only Ranker with that last name", () => {
+    const lists = [ranked('Consensus', 'Boone', 'Winks'), ranked('Hayden Winks')];
+    expect(names(withFullRankerNames(lists))).toEqual([['Consensus', 'Boone', 'Hayden Winks'], ['Hayden Winks']]);
+  });
+
+  it('does not count another spelling of the one word as a Ranker with that last name', () => {
+    const lists = [ranked('Winks'), ranked('WINKS'), ranked('Hayden Winks')];
+    expect(names(withFullRankerNames(lists))).toEqual([['Hayden Winks'], ['Hayden Winks'], ['Hayden Winks']]);
+  });
+
+  it('keeps a one-word Ranker apart when two Rankers have that last name', () => {
+    const lists = [ranked('Winks'), ranked('Hayden Winks'), ranked('Sam Winks')];
+    expect(names(withFullRankerNames(lists))).toEqual([['Winks'], ['Hayden Winks'], ['Sam Winks']]);
+  });
+
+  it("names a page's Rankers by the Source's kept lists", () => {
+    expect(names(withFullRankerNames([ranked('Winks')], [ranked('Winks'), ranked('Hayden Winks')]))).toEqual([['Hayden Winks']]);
   });
 });
 

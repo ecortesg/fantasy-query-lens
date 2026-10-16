@@ -78,8 +78,8 @@ describe('findPlayers', () => {
   });
 
   it('finds players past the first hundred', () => {
-    const many = Array.from({ length: 250 }, (_, i) => player(`p${i}`, `Player ${'x'.repeat(i + 1)}`, ['WR'], 'KC'));
-    const doc = page(`<p>Player ${'x'.repeat(150)} and Player ${'x'.repeat(250)}</p>`);
+    const many = Array.from({ length: 250 }, (_, i) => player(`p${i}`, `Player x${i}`, ['WR'], 'KC'));
+    const doc = page('<p>Player x149 and Player x249</p>');
     expect(findPlayers(doc.body, many).map((h) => h.player.id)).toEqual(['p149', 'p249']);
   });
 
