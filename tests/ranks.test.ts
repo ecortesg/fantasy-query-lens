@@ -6,6 +6,7 @@ import { fixture, page, player } from './helpers';
 
 const allen = player('4984', 'Josh Allen', ['QB'], 'BUF');
 const lamar = player('4881', 'Lamar Jackson', ['QB'], 'BAL');
+const mahomes = player('4046', 'Patrick Mahomes', ['QB'], 'KC');
 const gibbs = player('9221', 'Jahmyr Gibbs', ['RB'], 'DET');
 const walker = player('8151', 'Kenneth Walker', ['RB'], 'KC');
 const bijan = player('9509', 'Bijan Robinson', ['RB'], 'ATL');
@@ -40,6 +41,19 @@ describe('Yahoo', () => {
     const doc = fixture('yahoo-boone-defenses-week3');
     const { lists } = scan(doc, [niners, ravens]);
     expect(lists.map((l) => [l.positions, l.rankers[0]!.ranks])).toEqual([[['DEF'], { SF: 7, BAL: 17 }]]);
+  });
+
+  it('reads the table of every analyst, which writes a first initial', () => {
+    const { lists } = scan(fixture('yahoo-consensus-qb-week6'), [allen, mahomes]);
+    expect(lists).toHaveLength(1);
+    expect(lists[0]!.rankers).toEqual([
+      { name: 'Consensus', ranks: { '4984': 1, '4046': 8 } },
+      { name: 'Boone', ranks: { '4984': 1, '4046': 9 } },
+      { name: 'Smyth', ranks: { '4984': 1, '4046': 9 } },
+      { name: 'Harmon', ranks: { '4984': 1, '4046': 6 } },
+      { name: 'Pianowski', ranks: { '4984': 1, '4046': 7 } },
+      { name: 'Winks', ranks: { '4984': 1, '4046': 8 } },
+    ]);
   });
 
   it("gives a defense the rank of its own row, not of the row where it is the opponent", () => {

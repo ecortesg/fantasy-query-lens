@@ -30,6 +30,18 @@ export function namePattern(name: string): string {
 }
 
 /**
+ * A first initial and the rest of the name ("J. Allen" for Josh Allen), as
+ * Yahoo's table of every analyst writes it. Only in a row that names the
+ * player's team: see `namesTeam`.
+ */
+function initialPattern(player: Player): string | undefined {
+  const [first, ...rest] = player.name.split(/\s+/);
+  const initial = norm(first!)[0];
+  if (player.positions.includes('DEF') || !initial || rest.length === 0) return undefined;
+  return `${initial}${PUNCT}${SPACE}${namePattern(rest.join(' '))}${SUFFIX}`;
+}
+
+/**
  * A defense answers to its full name, its nickname and its team code
  * ("Baltimore Ravens", "Ravens D/ST", "BAL"). Only in a defense context,
  * though: see `isDefenseHit`.
@@ -93,15 +105,28 @@ function fitsTeam(node: Text, player: Player): boolean {
   return teams.size === 0 || teams.has(player.team);
 }
 
-/** The words of an element, split at element edges too: `<td>Walker</td><td>SEA</td>` is two words. */
-export function words(element: Element): string[] {
+/** A team after "@", "vs." or "at": the opponent. */
+const OPPONENT = /(?:@|\b(?:vs?|at)\.?)\s*[A-Z]{2,3}\b/gi;
+
+/** Whether the row around a name names the player's team, not as the opponent. */
+function namesTeam(node: Text, player: Player): boolean {
+  const entry = node.parentElement?.closest(ENTRY);
+  if (!entry) return false;
+  return splitWords(entryText(entry).replace(OPPONENT, ' ')).some((w) => teamCode(w) === player.team);
+}
+
+/** An element's text, with a space at each node edge. */
+function entryText(element: Element): string {
   const walker = element.ownerDocument.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   const out: string[] = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    out.push(...(node.nodeValue ?? '').split(/[^A-Za-z]+/).filter(Boolean));
-  }
-  return out;
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) out.push(node.nodeValue ?? '');
+  return out.join(' ');
 }
+
+const splitWords = (text: string) => text.split(/[^A-Za-z]+/).filter(Boolean);
+
+/** The words of an element, split at element edges too: `<td>Walker</td><td>SEA</td>` is two words. */
+export const words = (element: Element): string[] => splitWords(entryText(element));
 
 /**
  * Names per regex. V8 compiles a regex to machine code on its second run, and
@@ -115,8 +140,12 @@ type Match = { index: number; text: string; order: number };
 export function findPlayers(root: Element, players: readonly Player[]): Hit[] {
   if (players.length === 0) return [];
   // Namesakes share a pattern, and the first one whose team fits the row gets the match.
-  const byPattern = Map.groupBy(players, playerPattern);
-  const patterns = [...byPattern.keys()];
+  // A first initial is a pattern of its own, as it has other namesakes.
+  const groups = [
+    ...[...Map.groupBy(players, playerPattern)].map(([pattern, namesakes]) => ({ pattern, namesakes, fits: fitsTeam })),
+    ...[...Map.groupBy(players, initialPattern)].flatMap(([pattern, namesakes]) => (pattern ? [{ pattern, namesakes, fits: namesTeam }] : [])),
+  ];
+  const patterns = groups.map((g) => g.pattern);
   // One capture group per pattern, so the group that matched names the players.
   const regexes = Array.from({ length: Math.ceil(patterns.length / GROUP) }, (_, g) => {
     const alternatives = patterns.slice(g * GROUP, (g + 1) * GROUP).map((p) => `(${p})`).join('|');
@@ -152,8 +181,9 @@ export function findPlayers(root: Element, players: readonly Player[]): Hit[] {
         return start < end && node.data.slice(start, end).trim() ? [{ node, start, end }] : [];
       });
       const { node, start } = parts[0]!;
-      const player = byPattern.get(patterns[match.order]!)!.find(
-        (p) => fitsTeam(node, p) && (!p.positions.includes('DEF') || isDefenseHit(node, start, match.text.replaceAll(BREAK, ''), p.team)),
+      const { namesakes, fits } = groups[match.order]!;
+      const player = namesakes.find(
+        (p) => fits(node, p) && (!p.positions.includes('DEF') || isDefenseHit(node, start, match.text.replaceAll(BREAK, ''), p.team)),
       );
       if (!player) continue;
       const entry = node.parentElement?.closest(ENTRY);
