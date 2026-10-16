@@ -26,6 +26,22 @@ export function listsForLeague<T extends RankedList>(lists: readonly T[], scorin
 /** Every ranker the lists offer, the default first. */
 export const rankerNames = (lists: readonly RankedList[]) => [...new Set(lists.flatMap((l) => l.rankers.map((r) => r.name)))];
 
+/**
+ * The Ranker the Lineup shows: the user's pick, else the page's default, else,
+ * on a page Lens does not read (such as Sleeper), the default of the newest
+ * kept list, the Ranker the user last saw.
+ */
+export function rankerToShow(
+  lists: readonly (RankedList & { scannedAt: number })[],
+  chosen: string | undefined,
+  page: readonly RankedList[] | undefined,
+): string | undefined {
+  const names = rankerNames(lists);
+  const pageDefault = page && rankerNames(page)[0];
+  const newest = lists.reduce<(typeof lists)[number] | undefined>((a, l) => (!a || l.scannedAt > a.scannedAt ? l : a), undefined);
+  return [chosen, pageDefault, newest?.rankers[0]?.name].find((n) => n && names.includes(n));
+}
+
 /** The chosen ranker's column in a list, or the list's default. */
 export const rankerIn = (list: RankedList, name: string | undefined): Ranker =>
   list.rankers.find((r) => r.name === name) ?? list.rankers[0]!;

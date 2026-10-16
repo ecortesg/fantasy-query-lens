@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { slotName, type League } from '@/lib/league';
 import { buildLineup, type RankSet, type RosterPlayer } from '@/lib/lineup';
-import { listLabel, listsForLeague, rankerIn, rankerNames, rankLabel, sourceTitle } from '@/lib/lists';
+import { listLabel, listsForLeague, rankerIn, rankerNames, rankerToShow, rankLabel, sourceTitle } from '@/lib/lists';
 import type { MarkKind } from '@/lib/page/highlight';
 import type { ScanResult } from '@/lib/page/scan';
 import type { PageSource } from '@/lib/page/source';
@@ -29,10 +29,9 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
   // The lists kept from every page of this Source (ADR-0004).
   const lists = listsForLeague(listsFromSource(stored, source.site, source.week), league.scoring);
   const names = rankerNames(lists);
-  const pageDefault = page && rankerNames(listsForLeague(page.lists, league.scoring))[0];
   const [chosen, setChosen] = useState<string>();
   const [showUpgrades, setShowUpgrades] = useState(false);
-  const ranker = [chosen, pageDefault, names[0]].find((n) => n && names.includes(n));
+  const ranker = rankerToShow(lists, chosen, page && listsForLeague(page.lists, league.scoring));
 
   const used = lists.filter((l) => !ranker || l.rankers.some((r) => r.name === ranker));
   const roster: RosterPlayer[] = league.roster.flatMap((e) => {
