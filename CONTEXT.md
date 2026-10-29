@@ -9,7 +9,7 @@ A user's fantasy league as the extension keeps it: a name, a Scoring Format, its
 _Avoid_: team, config
 
 **Roster**:
-The players on the user's team in a League, starters and bench together. Each entry is active, IR, or taxi. IR and taxi players are highlighted but never suggested to start. A Sleeper Roster, and the players on the league's other teams, are refreshed at a Scan, at most once every 5 minutes (ADR-0005).
+The players on the user's team in a League, starters and bench together. Each entry is active, IR, or taxi. An IR player the page ranks can be suggested to start, with an IR note: the user activates him, and the platform asks for the roster spot. Taxi players are highlighted but never suggested to start. A Sleeper Roster, and the players on the league's other teams, are refreshed at a Scan, at most once every 5 minutes (ADR-0005).
 
 **Slot**:
 One starting place in a lineup, defined by the set of positions it accepts: FLEX is RB/WR/TE and SUPER_FLEX is QB/RB/WR/TE (ADR-0003). Bench, IR and taxi are not Slots.

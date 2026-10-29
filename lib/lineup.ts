@@ -13,11 +13,11 @@ export type Starter =
 
 export type Lineup = {
   starters: Starter[];
-  /** Active players left over that some list ranks, by position, list and then rank. */
+  /** Active and IR players left over that some list ranks, by position, list and then rank. */
   bench: { playerId: string; rank: number; from: RankSet }[];
-  /** Active players no list ranks. */
+  /** Active and IR players no list ranks. */
   unranked: string[];
-  /** IR and taxi players, never suggested. */
+  /** Taxi players, never suggested. */
   out: string[];
 };
 
@@ -51,7 +51,7 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
   // The list that ranks a player for one of his positions, widest first.
   const ownList = (p: Player) => p.positions.flatMap((pos) => listsFor([pos])).find((l) => l.ranks[p.id] !== undefined);
 
-  const active = roster.filter((r) => r.status === 'active').map((r) => r.player);
+  const active = roster.filter((r) => r.status !== 'taxi').map((r) => r.player);
   const used = new Set<string>();
   const starters: Starter[] = [];
   const fillOrder = slots.map((slot, i) => ({ slot, i })).sort((a, b) => slotEligibility[a.slot].length - slotEligibility[b.slot].length);
@@ -101,5 +101,5 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
   const priority = (list: RankSet) => -coverage.get(list)!.length;
   bench.sort((a, b) => order(a.playerId) - order(b.playerId) || priority(a.from) - priority(b.from) || a.rank - b.rank);
 
-  return { starters, bench, unranked, out: roster.filter((r) => r.status !== 'active').map((r) => r.player.id) };
+  return { starters, bench, unranked, out: roster.filter((r) => r.status === 'taxi').map((r) => r.player.id) };
 }

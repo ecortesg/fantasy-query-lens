@@ -83,7 +83,7 @@ export function findPickups({ slots, roster, lists, starters, rostered, byId }: 
     pickups.push(pickup);
   }
 
-  const bench = new Set(roster.filter((r) => r.status === 'active' && !startingIds.has(r.player.id)).map((r) => r.player.id));
+  const bench = new Set(roster.filter((r) => r.status !== 'taxi' && !startingIds.has(r.player.id)).map((r) => r.player.id));
   const readable = lists
     .filter((l) => l.positions.length && slots.some((s) => l.positions.every((p) => (slotEligibility[s] as readonly Position[]).includes(p))))
     .sort((a, b) => b.positions.length - a.positions.length);
