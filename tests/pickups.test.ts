@@ -14,8 +14,8 @@ const ids = (pickups: Pickup[]) =>
   pickups.map((p) => ('slot' in p ? `${p.playerId} for ${p.slot}` : 'replaces' in p ? `${p.playerId} starts over ${p.replaces.playerId}` : `${p.playerId} beats ${p.over.playerId}`));
 
 describe('findPickups', () => {
-  const roster = [mine('rb1'), mine('rb2'), mine('hurt', 'ir')];
-  const rostered = new Set(['rb1', 'rb2', 'hurt', 'theirs']);
+  const roster = [mine('rb1'), mine('rb2'), mine('stash', 'taxi')];
+  const rostered = new Set(['rb1', 'rb2', 'stash', 'theirs']);
   const byId = new Map(
     [
       player('fa1', 'fa1', ['RB'], 'KC'),
@@ -39,8 +39,8 @@ describe('findPickups', () => {
       }),
     );
 
-  it('puts a player the Lineup would start before one who only beats a bench player, and leaves out IR', () => {
-    const rbs = list(['RB'], { fa1: 1, rb1: 2, theirs: 3, fa2: 4, rb2: 5, hurt: 6, fa3: 7 });
+  it('puts a player the Lineup would start before one who only beats a bench player, and leaves out taxi', () => {
+    const rbs = list(['RB'], { fa1: 1, rb1: 2, theirs: 3, fa2: 4, rb2: 5, stash: 6, fa3: 7 });
     expect(pickups(['RB'], [rbs])).toEqual(['fa1 starts over rb1', 'fa2 beats rb2']);
   });
 

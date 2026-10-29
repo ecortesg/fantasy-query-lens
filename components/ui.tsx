@@ -131,7 +131,7 @@ export const Swatch = ({ kind }: { kind: keyof typeof markStyles }) => (
   <span style={markStyles[kind]} className="inline-block size-2.5 rounded-sm ring-1 ring-black/15" />
 );
 
-/** "IR" or "TAXI" for a player never suggested, else the note given. */
+/** "IR" or "TAXI" for a player off the active roster, else the note given. */
 export function statusNote(status: RosterEntry['status'] | undefined, note?: string): string | undefined {
   return status && status !== 'active' ? status.toUpperCase() : note;
 }

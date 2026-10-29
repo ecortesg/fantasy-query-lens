@@ -28,7 +28,7 @@ export const slotName = (slot: Slot) => slotNames[slot] ?? slot;
 export const scoringFormats = ['STD', 'HALF', 'PPR'] as const;
 export type ScoringFormat = (typeof scoringFormats)[number];
 
-/** IR and taxi players are highlighted but never suggested to start. */
+/** IR players can start: a ranked one is expected to play, and the platform asks for the roster spot. Taxi players never start. */
 export type RosterEntry = { playerId: string; status: 'active' | 'ir' | 'taxi' };
 
 export type League = {

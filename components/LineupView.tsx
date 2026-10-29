@@ -118,6 +118,7 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
                 player={byId.get(s.playerId)}
                 rank={s.rank}
                 from={s.from}
+                note={statusNote(status.get(s.playerId))}
                 strong
               />
             ) : (
@@ -133,7 +134,7 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
 
         <Section title="Bench">
           {lineup.bench.map((b) => (
-            <Line key={b.playerId} badge={badgeOf(b.playerId)} kind="bench" id={b.playerId} player={byId.get(b.playerId)} rank={b.rank} from={b.from} />
+            <Line key={b.playerId} badge={badgeOf(b.playerId)} kind="bench" id={b.playerId} player={byId.get(b.playerId)} rank={b.rank} from={b.from} note={statusNote(status.get(b.playerId))} />
           ))}
           {[...lineup.unranked, ...lineup.out].map((id) => (
             <Line key={id} badge={badgeOf(id)} id={id} player={byId.get(id)} note={statusNote(status.get(id), 'Unranked')} faded />

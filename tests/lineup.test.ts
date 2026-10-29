@@ -84,11 +84,12 @@ describe('buildLineup', () => {
     expect(lineup.bench.map((b) => [b.playerId, b.from.heading])).toEqual([['rb3', 'RB']]);
   });
 
-  it('never suggests IR or taxi players, and lists the unranked apart', () => {
-    const withIr: RosterPlayer[] = [...roster, { player: hurt, status: 'ir' }];
-    const lineup = buildLineup(['RB'], withIr, [list('RB', ['RB'], { ir1: 1, rb3: 9 })]);
-    expect(picks(lineup)).toEqual(['RB:rb3']);
-    expect(lineup.out).toEqual(['ir1']);
+  it('starts a ranked IR player, never a taxi player, and lists the unranked apart', () => {
+    const taxi = { ...hurt, id: 'taxi1' };
+    const withIr: RosterPlayer[] = [...roster, { player: hurt, status: 'ir' }, { player: taxi, status: 'taxi' }];
+    const lineup = buildLineup(['RB'], withIr, [list('RB', ['RB'], { taxi1: 1, ir1: 2, rb3: 9 })]);
+    expect(picks(lineup)).toEqual(['RB:ir1']);
+    expect(lineup.out).toEqual(['taxi1']);
     expect(lineup.unranked).toEqual(['qb1', 'qb2', 'rb1', 'rb2', 'wr1', 'te1']);
   });
 
