@@ -3,7 +3,7 @@
   "description": "Your fantasy roster on any rankings page, and a lineup from that page’s ranks.",
   "private": true,
   "license": "MIT",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "scripts": {
     "dev": "wxt",
