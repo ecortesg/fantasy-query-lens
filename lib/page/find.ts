@@ -29,29 +29,33 @@ export function namePattern(name: string): string {
     .join(`${PUNCT}[\\s\\-–][\\s\\-–\\u0000]*`);
 }
 
-/**
- * A first initial and the rest of the name ("J. Allen" for Josh Allen), as
- * Yahoo's table of every analyst writes it. Only in a row that names the
- * player's team: see `namesTeam`.
- */
-function initialPattern(player: Player): string | undefined {
-  const [first, ...rest] = player.name.split(/\s+/);
-  const initial = norm(first!)[0];
-  if (player.positions.includes('DEF') || !initial || rest.length === 0) return undefined;
-  return `${initial}${PUNCT}${SPACE}${namePattern(rest.join(' '))}${SUFFIX}`;
-}
+/** One way a page may write a player, and the check that the text around it is about him. */
+type Spelling = { name: string; pattern: string; fits: (node: Text, player: Player) => boolean };
 
 /**
- * A defense answers to its full name, its nickname and its team code
- * ("Baltimore Ravens", "Ravens D/ST", "BAL"). Only in a defense context,
- * though: see `isDefenseHit`.
+ * A player answers to his name, and to a first initial and the rest of it
+ * ("J. Allen" for Josh Allen) in a row that names his team, as Yahoo's table
+ * of every analyst writes it. A defense answers to its full name, its nickname
+ * and its team code ("Baltimore Ravens", "Ravens D/ST", "BAL"), but only in a
+ * defense context: see `isDefenseHit`.
  */
-function playerPattern(player: Player): string {
-  if (!player.positions.includes('DEF')) return namePattern(player.name) + SUFFIX;
-  const nickname = player.name.split(' ').at(-1)!;
-  return [namePattern(player.name), namePattern(nickname), ...codeSpellings(player.team)]
-    .map((name) => `${name}${DEFENSE_WORD}?`)
-    .join('|');
+function spellings(player: Player): Spelling[] {
+  const [first, ...rest] = player.name.split(/\s+/);
+  if (player.positions.includes('DEF')) {
+    const nickname = rest.at(-1) ?? first!;
+    return [
+      ...[player.name, nickname].map((name) => ({ name, pattern: namePattern(name) })),
+      ...codeSpellings(player.team).map((code) => ({ name: code, pattern: code })),
+    ].map((s) => ({ ...s, pattern: `${s.pattern}${DEFENSE_WORD}?`, fits: fitsTeam }));
+  }
+  const full = { name: player.name, pattern: namePattern(player.name) + SUFFIX, fits: fitsTeam };
+  const initial = norm(first!)[0];
+  if (!initial || rest.length === 0) return [full];
+  const restName = rest.join(' ');
+  return [
+    full,
+    { name: `${initial} ${restName}`, pattern: `${initial}${PUNCT}${SPACE}${namePattern(restName)}${SUFFIX}`, fits: namesTeam },
+  ];
 }
 
 /**
@@ -140,11 +144,15 @@ type Match = { index: number; text: string; order: number };
 export function findPlayers(root: Element, players: readonly Player[]): Hit[] {
   if (players.length === 0) return [];
   // Namesakes share a pattern, and the first one whose team fits the row gets the match.
-  // A first initial is a pattern of its own, as it has other namesakes.
-  const groups = [
-    ...[...Map.groupBy(players, playerPattern)].map(([pattern, namesakes]) => ({ pattern, namesakes, fits: fitsTeam })),
-    ...[...Map.groupBy(players, initialPattern)].flatMap(([pattern, namesakes]) => (pattern ? [{ pattern, namesakes, fits: namesTeam }] : [])),
-  ];
+  // A regex takes the first alternative that matches, so the longest names go first:
+  // the Chiefs' "KC" would hide "KC Concepcion", and be rejected as not about the defense.
+  const bySpelling = Map.groupBy(
+    players.flatMap((player) => spellings(player).map((spelling) => ({ ...spelling, player }))),
+    (s) => s.pattern,
+  );
+  const groups = [...bySpelling.values()]
+    .map((same) => ({ ...same[0]!, namesakes: same.map((s) => s.player) }))
+    .sort((a, b) => norm(b.name).length - norm(a.name).length);
   const patterns = groups.map((g) => g.pattern);
   // One capture group per pattern, so the group that matched names the players.
   const regexes = Array.from({ length: Math.ceil(patterns.length / GROUP) }, (_, g) => {

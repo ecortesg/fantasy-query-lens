@@ -146,6 +146,13 @@ describe('defenses', () => {
     expect(found('<h2>Week 3 Defense Rankings</h2><ol><li>49ers</li><li>Ravens</li></ol>')).toEqual(['SF:49ers']);
   });
 
+  it('reads a name that starts with a team code as the player', () => {
+    const chiefs = player('KC', 'Kansas City Chiefs', ['DEF'], 'KC');
+    const concepcion = player('7', 'KC Concepcion Jr.', ['WR'], 'CLE');
+    const row = '<table><tr><td>65</td><td>KC Concepcion Jr.</td><td>WR</td><td>CLE</td><td>@ PIT</td></tr></table>';
+    expect(found(row, [chiefs, concepcion])).toEqual(['7:KC Concepcion Jr.']);
+  });
+
   it('needs capitals for a bare code', () => {
     const saints = player('NO', 'New Orleans Saints', ['DEF'], 'NO');
     expect(found('<table><tr><td>no</td><td>DST</td></tr><tr><td>NO</td><td>DST</td></tr></table>', [saints])).toEqual([
