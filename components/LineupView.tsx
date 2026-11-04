@@ -7,7 +7,7 @@ import type { ScanResult } from '@/lib/page/scan';
 import type { PageSource } from '@/lib/page/source';
 import { findPickups, type Pickup } from '@/lib/pickups';
 import type { Player } from '@/lib/players';
-import { keyOf, listsFromSource, type StoredList } from '@/lib/scans';
+import { removeList, listsFromSource, type StoredList } from '@/lib/scans';
 import { asideClass, Badge, count, Line, RosterSection, Section, Select, SourceCard, Swatch, statusNote } from './ui';
 
 type Props = {
@@ -159,7 +159,7 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
           <summary className="cursor-pointer select-none">Ranks from {used.length === 1 ? '1 list' : `${used.length} lists`}</summary>
           <ul className="mt-2 divide-y divide-neutral-100 border-t border-neutral-100">
             {used.map((l) => (
-              <li key={keyOf(l)} className="flex items-center gap-3 py-1.5">
+              <li key={l.id} className="flex items-center gap-3 py-1.5">
                 <Badge text={listLabel(l.positions)} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-neutral-700" title={l.heading}>
@@ -175,6 +175,14 @@ export function LineupView({ league, byId, source, page, stored, onKinds, onForg
                     )}
                   </p>
                 </div>
+                <button
+                  className="shrink-0 px-1 text-base leading-none text-neutral-400 hover:text-red-700"
+                  title="Remove this list"
+                  aria-label={`Remove ${l.heading || listLabel(l.positions)}`}
+                  onClick={() => removeList(l.id)}
+                >
+                  ×
+                </button>
               </li>
             ))}
           </ul>

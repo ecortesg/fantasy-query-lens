@@ -4,4 +4,4 @@ Each Ranked List a Scan finds is kept under its Source (site + Ranker + week + S
 
 ## Why
 
-The sites we read show one position at a time: Yahoo with tabs, Fantasy Footballers with one page per position. One Scan alone can rarely fill a lineup. The week is part of the key, so lists from different weeks never mix, and old lists do no harm. When a page does not say its week, the panel shows the date each list was read. The user can always scan again, and can forget a whole site (ADR-0010).
+The sites we read show one position at a time: Yahoo with tabs, Fantasy Footballers with one page per position. One Scan alone can rarely fill a lineup. The week is part of the key, so lists from different weeks never mix, and old lists do no harm. When a page does not say its week, the panel shows the date each list was read. The user can always scan again, can forget a whole site (ADR-0010), and can remove one list from "Ranks from N lists". A list from another page of the Source can be wrong in a way Lens cannot see, and to forget the site would remove the good lists too. A Scan of its page adds a removed list again.
