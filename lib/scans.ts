@@ -3,18 +3,24 @@ import type { RankedList } from './page/ranks';
 import type { ScanResult } from './page/scan';
 
 /** A Ranked List kept after its Scan, with the page it came from (ADR-0004). */
-export type StoredList = RankedList & { site: string; siteName: string; week?: number; scannedAt: number };
+export type StoredList = RankedList & { id: string; site: string; siteName: string; week?: number; scannedAt: number };
 
-export const scansItem = storage.defineItem<StoredList[]>('local:scans', { fallback: [] });
+export const scansItem = storage.defineItem<StoredList[]>('local:scans', {
+  fallback: [],
+  version: 2,
+  migrations: {
+    2: (lists: Omit<StoredList, 'id'>[]): StoredList[] => lists.map((l) => ({ ...l, id: crypto.randomUUID() })),
+  },
+});
 
 /** Site + week + format + positions + rankers: a newer list with the same key replaces the older one. */
-export const keyOf = (l: StoredList) =>
+const keyOf = (l: StoredList) =>
   JSON.stringify([l.site, l.week ?? null, l.format ?? null, l.positions.toSorted(), l.rankers.map((r) => r.name)]);
 
 /** A Scan's lists, tagged with the page they came from. */
 export function storedLists(result: ScanResult): StoredList[] {
   const { site, siteName, week } = result.source;
-  return result.lists.map((l) => ({ ...l, site, siteName, week, scannedAt: result.scannedAt }));
+  return result.lists.map((l) => ({ ...l, id: crypto.randomUUID(), site, siteName, week, scannedAt: result.scannedAt }));
 }
 
 /** Kept lists with newer ones added, each replacing a kept list with the same key. */
@@ -32,6 +38,14 @@ export function saveScan(result: ScanResult): Promise<void> {
   queue = queue
     .catch(() => {})
     .then(async () => scansItem.setValue(mergeLists(await scansItem.getValue(), added)));
+  return queue;
+}
+
+/** Removes one kept list, which the user found wrong. A Scan of its page adds it again. */
+export function removeList(id: string): Promise<void> {
+  queue = queue
+    .catch(() => {})
+    .then(async () => scansItem.setValue((await scansItem.getValue()).filter((l) => l.id !== id)));
   return queue;
 }
 

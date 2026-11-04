@@ -62,7 +62,7 @@ export function findPickups({ slots, roster, lists, starters, rostered, byId }: 
     pickups.push({ ...best, slot: starter.slot });
   }
 
-  // Every ranked player, as one can start without passing a starter: a Slot whose widest list
+  // Every ranked player, as one can start without passing a starter: a Slot whose first list
   // ranked none of the user's players reads it once it ranks him.
   const starting = starters.flatMap((s) => ('playerId' in s ? [s] : []));
   const startingIds = new Set(starting.map((s) => s.playerId));

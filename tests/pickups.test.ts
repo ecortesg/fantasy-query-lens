@@ -23,6 +23,7 @@ describe('findPickups', () => {
       player('wr', 'wr', ['WR'], 'KC'),
       player('te', 'te', ['TE'], 'KC'),
       player('qb', 'qb', ['QB'], 'KC'),
+      player('gesicki', 'gesicki', ['TE'], 'KC'),
       player('BUF', 'Buffalo Bills', ['DEF'], 'BUF'),
       player('BAL', 'Baltimore Ravens', ['DEF'], 'BAL'),
     ].map((p) => [p.id, p]),
@@ -69,6 +70,21 @@ describe('findPickups', () => {
     const rbs = list(['RB'], { fa1: 1, rb1: 2, rb2: 3 });
     const flex = list(['RB', 'WR', 'TE'], { wr: 1, fa1: 2, rb1: 3, rb2: 4 });
     expect(pickups(['RB', 'FLEX'], [rbs, flex])).toEqual(['wr starts over rb2', 'fa1 starts over rb2']);
+  });
+
+  it('does not start a player because a list with no stated positions ranks him once he is added', () => {
+    // A list from another page that ranks qb but none of the user's QBs.
+    const other = list([], { qb: 8, fa1: 1 });
+    const qbs = list(['QB'], { qb1: 9, qb: 13 });
+    expect(pickups(['QB'], [other, qbs], [mine('qb1', 'active', 'QB')])).toEqual([]);
+  });
+
+  it('reads a Slot from its stated list before a wider list with no stated positions', () => {
+    // An overall list from another page: rb1 makes it look wider than the TE list.
+    const team = [mine('rb1'), mine('te1', 'active', 'TE')];
+    const overall = list([], { rb1: 2, te: 95, te1: 104 });
+    const tes = list(['TE'], { gesicki: 13, te1: 17 });
+    expect(pickups(['TE'], [overall, tes], team)).toEqual(['gesicki starts over te1']);
   });
 
   it('leaves out a list no Slot reads', () => {
