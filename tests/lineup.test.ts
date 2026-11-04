@@ -98,6 +98,13 @@ describe('buildLineup', () => {
     expect(picks(buildLineup(['FLEX'], roster, [top]))).toEqual(['FLEX:wr1']);
   });
 
+  it('reads a list that states its positions before a wider one whose positions are guessed', () => {
+    const overall = list('Overall', [], { qb1: 1, rb1: 2, qb2: 9 });
+    const lineup = buildLineup(['QB'], roster, [overall, qbs]);
+    expect(lineup.starters[0]).toMatchObject({ playerId: 'qb2', rank: 3, from: qbs });
+    expect(lineup.bench.find((b) => b.playerId === 'qb1')).toMatchObject({ rank: 8, from: qbs });
+  });
+
   it('orders the bench by list before rank, since ranks from different lists are on different scales', () => {
     const preview = list('Premium flex', ['RB', 'WR', 'TE'], { rb3: 40 });
     const lineup = buildLineup([], roster, [preview, list('RB', ['RB'], { rb1: 2, rb2: 5 })]);

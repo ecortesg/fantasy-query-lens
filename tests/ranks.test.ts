@@ -155,6 +155,14 @@ describe('generic pages', () => {
     expect(scan(page('<p>Start Jahmyr Gibbs this week.</p>'), [gibbs]).lists).toEqual([]);
   });
 
+  it('leaves out a list of pickups: its order is who to add, not who to start', () => {
+    const doc = page(
+      `<h2>Top-10 overall pickups for Week 9</h2><ol><li>Jahmyr Gibbs</li><li>Josh Allen</li></ol>
+       <h2>Waiver wire targets</h2><div><h3>1. Bijan Robinson, ATL</h3></div>`,
+    );
+    expect(scan(doc, [gibbs, allen, bijan]).lists).toEqual([]);
+  });
+
   it('leaves out lists from later infinite-scroll articles', () => {
     const table = (n: number) =>
       `<h2>RB</h2><table><tr><th>Rank</th><th>Player</th></tr><tr><td>${n}</td><td>Jahmyr Gibbs</td></tr><tr><td>${n + 1}</td><td>X</td></tr></table>`;

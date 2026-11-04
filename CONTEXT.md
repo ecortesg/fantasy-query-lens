@@ -22,7 +22,7 @@ STD, HALF or PPR. Sleeper Leagues get it from their points per reception. A manu
 One reading of the page the user is on: the user's players and the active League's available players found on it and, when the page ranks them, the Ranked Lists. It reads only what the page shows (ADR-0001). The Scan button asks Chrome for access to the site, then scans (ADR-0002). On a site the user scanned and allowed, each page or tab they open is scanned with no click (ADR-0010).
 
 **Ranked List**:
-Players in a ranker's order with their rank numbers, covering one or more positions. A positional list covers one position. A cross-position list (FLEX, overall) covers several. The rank comes from the page's Rank cell, not from row order, so a sorted table still reads right.
+Players in a ranker's order with their rank numbers, covering one or more positions. A positional list covers one position. A cross-position list (FLEX, overall) covers several. The rank comes from the page's Rank cell, not from row order, so a sorted table still reads right. A site's list of players to add ("Top-10 pickups", "waiver targets") is not a Ranked List: its order is who to add, not who to start.
 
 **Source**:
 Who ranked a Ranked List, and for what: site + Ranker + week + Scoring Format. The panel titles it by site and week ("Yahoo Sports · Week 3"), with the Ranker as a menu below. Scans with the same Source merge into one set of lists (ADR-0004).
@@ -32,7 +32,7 @@ The person or column a list's ranks come from. A table with several ranker colum
 _Avoid_: expert, analyst (except when quoting a site)
 
 **Lineup**:
-The suggestion: each Slot filled with the best-ranked eligible player still left (from the widest list that covers the Slot, or the next one when that list ranks no one left; with no such list, the best rank in the position lists: a guess, shown as "WR18"), then the bench in rank order, then the players the page does not rank.
+The suggestion: each Slot filled with the best-ranked eligible player still left (from the widest list that covers the Slot, or the next one when that list ranks no one left; a list that states its positions before one that does not; with no such list, the best rank in the position lists: a guess, shown as "WR18"), then the bench in rank order, then the players the page does not rank.
 
 **Available player**:
 A player on no team in a Sleeper League, at a position one of its Slots takes. A manual League has none, as the extension does not know its other teams. A Scan looks for them by name (ADR-0006).

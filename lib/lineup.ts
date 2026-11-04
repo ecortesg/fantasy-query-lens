@@ -28,7 +28,8 @@ const positionOrder: Position[] = ['QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB
 /**
  * The suggested lineup (ADR-0003). Slots that accept fewer positions are filled
  * first. Each slot reads the widest list that covers every position it accepts,
- * so a FLEX list, when there is one, ranks the RB slots too. A list that ranks
+ * so a FLEX list, when there is one, ranks the RB slots too. A list that states
+ * its positions comes before one that does not, however wide. A list that ranks
  * none of the players left for a slot (a short preview of a longer list) passes
  * the slot to the next list. With no such list, as on a site with no FLEX page,
  * the best rank in the position lists starts. It is a guess, as WR18 and RB18
@@ -43,12 +44,14 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
       l.positions.length ? l.positions : [...new Set(Object.keys(l.ranks).flatMap((id) => byId.get(id)?.positions ?? []))],
     ]),
   );
-  // The lists that cover every eligible position, widest first.
+  // A guessed coverage grows with each player added, so a list from another page
+  // could take a Slot once it ranks a Pickup.
+  const readOrder = (a: RankSet, b: RankSet) =>
+    Number(!a.positions.length) - Number(!b.positions.length) || coverage.get(b)!.length - coverage.get(a)!.length;
+  // The lists that cover every eligible position, in read order.
   const listsFor = (eligible: readonly Position[]) =>
-    lists
-      .filter((l) => eligible.every((p) => coverage.get(l)!.includes(p)))
-      .sort((a, b) => coverage.get(b)!.length - coverage.get(a)!.length);
-  // The list that ranks a player for one of his positions, widest first.
+    lists.filter((l) => eligible.every((p) => coverage.get(l)!.includes(p))).sort(readOrder);
+  // The list that ranks a player for one of his positions, in read order.
   const ownList = (p: Player) => p.positions.flatMap((pos) => listsFor([pos])).find((l) => l.ranks[p.id] !== undefined);
 
   const active = roster.filter((r) => r.status !== 'taxi').map((r) => r.player);
@@ -95,11 +98,10 @@ export function buildLineup(slots: readonly Slot[], roster: readonly RosterPlaye
     if (!from) unranked.push(player.id);
     else bench.push({ playerId: player.id, rank: from.ranks[player.id]!, from });
   }
-  // By position, then by list in the order the slots read them (widest first), then by rank:
+  // By position, then by list in the order the slots read them, then by rank:
   // ranks from different lists are on different scales.
   const order = (id: string) => positionOrder.indexOf(byId.get(id)!.positions[0]!);
-  const priority = (list: RankSet) => -coverage.get(list)!.length;
-  bench.sort((a, b) => order(a.playerId) - order(b.playerId) || priority(a.from) - priority(b.from) || a.rank - b.rank);
+  bench.sort((a, b) => order(a.playerId) - order(b.playerId) || readOrder(a.from, b.from) || a.rank - b.rank);
 
   return { starters, bench, unranked, out: roster.filter((r) => r.status === 'taxi').map((r) => r.player.id) };
 }

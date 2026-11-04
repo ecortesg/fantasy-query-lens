@@ -63,6 +63,9 @@ export function formatIn(text: string): ScoringFormat | undefined {
   return undefined;
 }
 
+/** A heading of a site's list of players to add: "Top-10 overall pickups", "Waiver wire targets". */
+const ADD_LIST = /\b(pickups?|waivers?)\b/i;
+
 /** The nearest heading before an element, looking at earlier siblings and then up the tree. */
 export function headingBefore(element: Element): string {
   for (let node: Element | null = element; node; node = node.parentElement) {
@@ -164,6 +167,8 @@ export function readLists(
 
   return [...byContainer].flatMap(([container, containerMarks]) => {
     const heading = headingBefore(container);
+    // Its order is who to add, not who to start.
+    if (ADD_LIST.test(heading)) return [];
     const format = formatIn(heading) ?? context.pageFormat;
     const list =
       container.matches('table')
