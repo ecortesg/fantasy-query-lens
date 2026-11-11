@@ -17,16 +17,19 @@ const IDP = new Set<Position>(['DL', 'LB', 'DB']);
 
 // The www host: the bare domain redirects there, and the redirect has no CORS header.
 const PLAYERS_URL = `${import.meta.env.WXT_FQ_URL ?? 'https://www.fantasyquery.com'}/api/lens/players`;
-const DAY_MS = 24 * 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 
 const playersCache = storage.defineItem<{ fetchedAt: number; players: Player[] }>(
   'local:players',
 );
 
-/** The player list, fetched at most once a day. A failed fetch falls back to the last copy. */
+/**
+ * The player list, fetched at most once an hour, so the server's daily team
+ * refresh shows soon after it runs. A failed fetch falls back to the last copy.
+ */
 export async function loadPlayers(now = Date.now()): Promise<Player[]> {
   const cached = await playersCache.getValue();
-  if (cached && now - cached.fetchedAt < DAY_MS) return cached.players;
+  if (cached && now - cached.fetchedAt < HOUR_MS) return cached.players;
 
   try {
     const res = await fetch(PLAYERS_URL);

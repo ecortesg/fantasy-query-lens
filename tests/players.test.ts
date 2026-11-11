@@ -49,7 +49,7 @@ describe('searchPlayers', () => {
 });
 
 describe('loadPlayers', () => {
-  const DAY = 24 * 60 * 60 * 1000;
+  const HOUR = 60 * 60 * 1000;
   const fetchMock = vi.fn<typeof fetch>();
   const respond = (list: Player[]) =>
     fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ players: list })));
@@ -61,14 +61,14 @@ describe('loadPlayers', () => {
   });
   afterEach(() => vi.unstubAllGlobals());
 
-  it('fetches at most once a day', async () => {
+  it('fetches at most once an hour', async () => {
     respond([walker]);
     await loadPlayers(0);
-    expect(await loadPlayers(DAY - 1)).toEqual([walker]);
+    expect(await loadPlayers(HOUR - 1)).toEqual([walker]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     respond([travis]);
-    expect(await loadPlayers(DAY)).toEqual([travis]);
+    expect(await loadPlayers(HOUR)).toEqual([travis]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -76,7 +76,7 @@ describe('loadPlayers', () => {
     respond([walker]);
     await loadPlayers(0);
     fetchMock.mockResolvedValueOnce(new Response('', { status: 500 }));
-    expect(await loadPlayers(2 * DAY)).toEqual([walker]);
+    expect(await loadPlayers(2 * HOUR)).toEqual([walker]);
   });
 
   it('fails when there is no copy to fall back to', async () => {
